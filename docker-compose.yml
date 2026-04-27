@@ -1,0 +1,306 @@
+services:
+  # ---------------------------------------------------------------------------
+  # API Gateway & Chat Service (FastAPI)
+  # ---------------------------------------------------------------------------
+  api:
+    image: datastrat/api:${APP_VERSION:-latest}
+    container_name: datastrat_api
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_URL=${REDIS_URL}
+      - DATABASE_URL=${DATABASE_URL}
+      - QDRANT_URL=${QDRANT_URL}
+      - S3_ENDPOINT_URL=${S3_ENDPOINT_URL:-http://minio:9000}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-admin}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-minioadmin}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME:-datastrat-evidence}
+      - ZITADEL_URL=${ZITADEL_URL:-http://zitadel:8080}
+      - ZITADEL_PUBLIC_URL=${ZITADEL_PUBLIC_URL:-http://localhost:8080}
+      - ZITADEL_HOST=${ZITADEL_HOST:-localhost:8080}
+      - ZITADEL_CREDENTIALS_FILE=/zitadel-config/credentials.json
+      - API_BASE_URL=${API_BASE_URL:-http://api:8000}
+      - APP_URL=${APP_URL:-http://localhost}
+      - OIDC_CALLBACK_URL=${OIDC_CALLBACK_URL:-http://localhost/api/v1/auth/oidc/callback}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-me-in-production}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
+      - JWT_EXPIRY_HOURS=${JWT_EXPIRY_HOURS:-24}
+      - LLM_PROVIDER=${LLM_PROVIDER}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_MODEL=${LLM_MODEL}
+      - LLM_BASE_URL=${LLM_BASE_URL}
+      # Tracing disabled for production by default to protect client data privacy
+      # - LANGCHAIN_TRACING_V2=${LANGCHAIN_TRACING_V2}
+      # - LANGSMITH_API_KEY=${LANGSMITH_API_KEY}
+      # - LANGSMITH_PROJECT=${LANGSMITH_PROJECT}
+      # - LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT}
+    depends_on:
+      zitadel_init:
+        condition: service_completed_successfully
+    volumes:
+      - zitadel_config:/zitadel-config:ro
+    networks:
+      - backend_net
+      - db_net
+
+  # ---------------------------------------------------------------------------
+  # RAG Worker / Ingestion Engine (Python)
+  # ---------------------------------------------------------------------------
+  worker:
+    image: datastrat/worker:${APP_VERSION:-latest}
+    container_name: datastrat_worker
+    environment:
+      - REDIS_URL=${REDIS_URL}
+      - DATABASE_URL=${DATABASE_URL}
+      - QDRANT_URL=${QDRANT_URL}
+      - S3_ENDPOINT_URL=${S3_ENDPOINT_URL:-http://minio:9000}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-admin}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-minioadmin}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME:-datastrat-evidence}
+      - LLM_PROVIDER=${LLM_PROVIDER}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_MODEL=${LLM_MODEL}
+      - LLM_BASE_URL=${LLM_BASE_URL}
+    networks:
+      - db_net
+
+  # ---------------------------------------------------------------------------
+  # Web UI (Next.js)
+  # ---------------------------------------------------------------------------
+  ui:
+    image: datastrat/ui:${APP_VERSION:-latest}
+    container_name: datastrat_ui
+    environment:
+      - PORT=3000
+      - TURBOPACK=0
+      - NEXT_DISABLE_TURBOPACK=1
+      - NEXT_PUBLIC_API_URL=
+    ports:
+      - "3000:3000"
+    networks:
+      - frontend_net
+      - backend_net
+
+  # ---------------------------------------------------------------------------
+  # Zitadel Volume Permissions Setup
+  # ---------------------------------------------------------------------------
+  zitadel_volume_init:
+    image: alpine
+    container_name: datastrat_zitadel_volume_init
+    command: sh -c "chmod 777 /machinekey && echo 'Volume permissions set'"
+    volumes:
+      - zitadel_machinekey:/machinekey
+
+  # ---------------------------------------------------------------------------
+  # Identity Provider (Zitadel)
+  # ---------------------------------------------------------------------------
+  zitadel:
+    image: ghcr.io/zitadel/zitadel:v2.54.3
+    container_name: datastrat_zitadel
+    command: start-from-init --masterkeyFromEnv --tlsMode disabled
+    depends_on:
+      zitadel_volume_init:
+        condition: service_completed_successfully
+    environment:
+      ZITADEL_MASTERKEY: ${ZITADEL_MASTERKEY:-V+xQoNkjZPoDKnkKuKemcvZyViDcEj60}
+      ZITADEL_DATABASE_POSTGRES_HOST: zitadel_db
+      ZITADEL_DATABASE_POSTGRES_PORT: 5432
+      ZITADEL_DATABASE_POSTGRES_DATABASE: zitadel
+      ZITADEL_DATABASE_POSTGRES_USER_USERNAME: zitadel
+      ZITADEL_DATABASE_POSTGRES_USER_PASSWORD: ${ZITADEL_DB_PASSWORD:-zitadel_secure_password}
+      ZITADEL_DATABASE_POSTGRES_USER_SSL_MODE: disable
+      ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME: zitadel
+      ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD: ${ZITADEL_DB_PASSWORD:-zitadel_secure_password}
+      ZITADEL_DATABASE_POSTGRES_ADMIN_SSL_MODE: disable
+      ZITADEL_EXTERNALSECURE: "${AUTH_SECURE:-false}"
+      ZITADEL_EXTERNALDOMAIN: "${AUTH_DOMAIN:-localhost}"
+      ZITADEL_EXTERNALPORT: "${AUTH_PORT:-8080}"
+      ZITADEL_DEFAULTINSTANCE_LOGINVERSION: 1
+      ZITADEL_FIRSTINSTANCE_ORG_NAME: DataStrat Org
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_USERNAME: admin
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_FIRSTNAME: Admin
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_LASTNAME: User
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORD: ${ZITADEL_ADMIN_PASSWORD:-Admin123!}
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_EMAIL_ADDRESS: admin@datastrat.local
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_EMAIL_VERIFIED: "true"
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PREFERREDLANGUAGE: en
+      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_USERNAME: zitadel-admin-sa
+      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_NAME: Zitadel Admin Service Account
+      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_PAT_EXPIRATIONDATE: "2099-01-01T00:00:00Z"
+      ZITADEL_FIRSTINSTANCE_PATPATH: /machinekey/pat.txt
+    volumes:
+      - zitadel_machinekey:/machinekey
+    networks:
+      - backend_net
+      - db_net
+
+  # ---------------------------------------------------------------------------
+  # Zitadel Initialization
+  # ---------------------------------------------------------------------------
+  zitadel_init:
+    image: datastrat/zitadel-init:${APP_VERSION:-latest}
+    container_name: datastrat_zitadel_init
+    depends_on:
+      zitadel:
+        condition: service_started
+    environment:
+      ZITADEL_URL: http://zitadel:8080
+      ZITADEL_HOST: localhost:8080
+      ZITADEL_PAT_FILE: /machinekey/pat.txt
+      OIDC_REDIRECT_URI: ${OIDC_CALLBACK_URL:-http://localhost/api/v1/auth/oidc/callback}
+      OIDC_POST_LOGOUT_URI: http://localhost/login
+      CREDENTIALS_FILE: /zitadel-config/credentials.json
+    volumes:
+      - zitadel_config:/zitadel-config
+      - zitadel_machinekey:/machinekey:ro
+    networks:
+      - backend_net
+
+  # ---------------------------------------------------------------------------
+  # Zitadel PostgreSQL (dedicated)
+  # ---------------------------------------------------------------------------
+  zitadel_db:
+    image: postgres:15-alpine
+    container_name: datastrat_zitadel_db
+    environment:
+      POSTGRES_USER: zitadel
+      POSTGRES_PASSWORD: ${ZITADEL_DB_PASSWORD:-zitadel_secure_password}
+      POSTGRES_DB: zitadel
+    volumes:
+      - zitadel_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zitadel -d zitadel"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - db_net
+
+  # ===========================================================================
+  # STORAGE SERVICES (HYBRID COMPATIBLE)
+  # These run locally unless the user provides external URIs.
+  # Use profile "local-storage" to run them.
+  # ===========================================================================
+
+  redis:
+    image: redis:7-alpine
+    container_name: datastrat_redis
+    profiles: ["local-storage"]
+    ports:
+      - "6379:6379"
+    networks:
+      - db_net
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: datastrat_postgres
+    profiles: ["local-storage"]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-datastrat}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-datastrat}
+      POSTGRES_DB: ${POSTGRES_DB:-datastrat}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - db_net
+
+  db_init:
+    image: datastrat/db-init:${APP_VERSION:-latest}
+    container_name: datastrat_db_init
+    profiles: ["local-storage"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+    networks:
+      - db_net
+
+  qdrant:
+    image: qdrant/qdrant:v1.8.0
+    container_name: datastrat_qdrant
+    profiles: ["local-storage"]
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - db_net
+
+  minio:
+    image: minio/minio:RELEASE.2023-11-20T22-40-07Z
+    container_name: datastrat_minio
+    profiles: ["local-storage"]
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${STORAGE_ACCESS_KEY:-admin}
+      MINIO_ROOT_PASSWORD: ${STORAGE_SECRET_KEY:-minioadmin}
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - db_net
+
+  minio_init:
+    image: minio/mc:RELEASE.2023-11-20T16-30-59Z
+    container_name: datastrat_minio_init
+    profiles: ["local-storage"]
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set datastrat http://minio:9000 $${STORAGE_ACCESS_KEY:-admin} $${STORAGE_SECRET_KEY:-minioadmin};
+      /usr/bin/mc mb datastrat/datastrat-evidence --ignore-existing;
+      /usr/bin/mc anonymous set private datastrat/datastrat-evidence;
+      exit 0;
+      "
+    networks:
+      - db_net
+
+  # ---------------------------------------------------------------------------
+  # Nginx Reverse Proxy
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:alpine
+    container_name: datastrat_nginx
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - ui
+      - api
+    networks:
+      - frontend_net
+      - backend_net
+
+volumes:
+  postgres_data:
+  qdrant_data:
+  minio_data:
+  zitadel_db_data:
+  zitadel_config:
+  zitadel_machinekey:
+
+networks:
+  frontend_net:
+    driver: bridge
+  backend_net:
+    driver: bridge
+  db_net:
+    driver: bridge

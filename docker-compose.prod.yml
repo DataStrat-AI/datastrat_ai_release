@@ -1,0 +1,45 @@
+# Production Deployment Override
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+services:
+  api:
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  worker:
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  ui:
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  zitadel:
+    restart: unless-stopped
+
+  zitadel_db:
+    restart: unless-stopped
+
+  nginx:
+    restart: unless-stopped
+    # In production, this volume maps to the server's certs or custom configs
+    # volumes:
+    #   - ./prod-nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    #   - ./certs:/etc/nginx/certs:ro
+
+  # Note: 
+  # Storage containers (Postgres, Redis, MinIO, Qdrant) are omitted here.
+  # If a client wants to run them locally, they can append '--profile local-storage' 
+  # to the `docker compose up` command.
