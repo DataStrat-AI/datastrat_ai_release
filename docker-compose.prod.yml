@@ -20,6 +20,7 @@ services:
 
   ui:
     restart: unless-stopped
+    command: npm run start
     logging:
       driver: "json-file"
       options:

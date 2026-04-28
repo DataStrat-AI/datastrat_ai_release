@@ -97,6 +97,7 @@ services:
   ui:
     image: ghcr.io/datastrat-ai/datastrat_ai-ui:${APP_VERSION:-latest}
     container_name: datastrat_ui
+    command: npm run dev
     environment:
       - PORT=3000
       - TURBOPACK=0
@@ -104,6 +105,9 @@ services:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
     ports:
       - "3000:3000"
+    volumes:
+      - ./ui/datastrat_ui:/app
+      - /app/node_modules
     networks:
       - frontend_net
       - backend_net
