@@ -3,7 +3,7 @@ services:
   # API Gateway & Chat Service (FastAPI)
   # ---------------------------------------------------------------------------
   api:
-    image: ghcr.io/DataStrat-AI/datastrat_ai-api:${APP_VERSION:-latest}
+    image: ghcr.io/datastrat-ai/datastrat_ai-api:${APP_VERSION:-latest}
     container_name: datastrat_api
     ports:
       - "8000:8000"
@@ -47,7 +47,7 @@ services:
   # RAG Worker / Ingestion Engine (Python)
   # ---------------------------------------------------------------------------
   worker:
-    image: ghcr.io/DataStrat-AI/datastrat_ai-worker:${APP_VERSION:-latest}
+    image: ghcr.io/datastrat-ai/datastrat_ai-worker:${APP_VERSION:-latest}
     container_name: datastrat_worker
     environment:
       - REDIS_URL=${REDIS_URL}
@@ -68,7 +68,7 @@ services:
   # Web UI (Next.js)
   # ---------------------------------------------------------------------------
   ui:
-    image: ghcr.io/DataStrat-AI/datastrat_ai-ui:${APP_VERSION:-latest}
+    image: ghcr.io/datastrat-ai/datastrat_ai-ui:${APP_VERSION:-latest}
     container_name: datastrat_ui
     environment:
       - PORT=3000
@@ -138,7 +138,7 @@ services:
   # Zitadel Initialization
   # ---------------------------------------------------------------------------
   zitadel_init:
-    image: ghcr.io/DataStrat-AI/datastrat_ai-zitadel-init:${APP_VERSION:-latest}
+    image: ghcr.io/datastrat-ai/datastrat_ai-zitadel-init:${APP_VERSION:-latest}
     container_name: datastrat_zitadel_init
     depends_on:
       zitadel:
@@ -213,7 +213,7 @@ services:
       - db_net
 
   db_init:
-    image: ghcr.io/DataStrat-AI/datastrat_ai-db-init:${APP_VERSION:-latest}
+    image: ghcr.io/datastrat-ai/datastrat_ai-db-init:${APP_VERSION:-latest}
     container_name: datastrat_db_init
     profiles: ["local-storage"]
     environment:
