@@ -17,7 +17,7 @@ services:
       - S3_BUCKET_NAME=${S3_BUCKET_NAME:-datastrat-evidence}
       - ZITADEL_URL=${ZITADEL_URL:-http://zitadel:8080}
       - ZITADEL_PUBLIC_URL=${ZITADEL_PUBLIC_URL:-http://localhost:8080}
-      - ZITADEL_HOST=${ZITADEL_HOST:-localhost:8080}
+      - ZITADEL_HOST=${AUTH_HOST:-localhost:8080}
       - ZITADEL_CREDENTIALS_FILE=/zitadel-config/credentials.json
       - API_BASE_URL=${API_BASE_URL:-http://api:8000}
       - APP_URL=${APP_URL:-http://localhost}
@@ -74,7 +74,7 @@ services:
       - PORT=3000
       - TURBOPACK=0
       - NEXT_DISABLE_TURBOPACK=1
-      - NEXT_PUBLIC_API_URL=
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
     ports:
       - "3000:3000"
     networks:
@@ -145,10 +145,10 @@ services:
         condition: service_started
     environment:
       ZITADEL_URL: http://zitadel:8080
-      ZITADEL_HOST: localhost:8080
+      ZITADEL_HOST: ${AUTH_HOST:-localhost:8080}
       ZITADEL_PAT_FILE: /machinekey/pat.txt
       OIDC_REDIRECT_URI: ${OIDC_CALLBACK_URL:-http://localhost/api/v1/auth/oidc/callback}
-      OIDC_POST_LOGOUT_URI: http://localhost/login
+      OIDC_POST_LOGOUT_URI: ${APP_URL:-http://localhost}/login
       CREDENTIALS_FILE: /zitadel-config/credentials.json
     volumes:
       - zitadel_config:/zitadel-config

@@ -71,18 +71,23 @@ auth_domain=${auth_domain:-localhost}
 
 if [ "$app_domain" = "localhost" ]; then
     app_url="http://localhost:3000"
+    api_url="http://localhost:8000"
     auth_port="8080"
+    auth_host="localhost:8080"
     auth_secure="false"
     z_public_url="http://localhost:8080"
 else
     # In production with a domain, Nginx routes over port 80
     app_url="http://${app_domain}"
+    api_url="http://${app_domain}"
     auth_port="80"
-    auth_secure="false"
+    auth_host="${auth_domain}"
+    auth_secure="false" # Change to true if using SSL/HTTPS
     z_public_url="http://${auth_domain}"
 fi
 
 sed -i.bak "s|^APP_URL=.*|APP_URL=${app_url}|g" .env
+sed -i.bak "s|^NEXT_PUBLIC_API_URL=.*|NEXT_PUBLIC_API_URL=${api_url}|g" .env
 sed -i.bak "s|^OIDC_CALLBACK_URL=.*|OIDC_CALLBACK_URL=${app_url}/api/v1/auth/oidc/callback|g" .env
 sed -i.bak "s|^ZITADEL_PUBLIC_URL=.*|ZITADEL_PUBLIC_URL=${z_public_url}|g" .env
 
@@ -91,6 +96,7 @@ echo "" >> .env
 echo "# Routing Config" >> .env
 echo "AUTH_DOMAIN=${auth_domain}" >> .env
 echo "AUTH_PORT=${auth_port}" >> .env
+echo "AUTH_HOST=${auth_host}" >> .env
 echo "AUTH_SECURE=${auth_secure}" >> .env
 
 # --- LLM Settings ---
