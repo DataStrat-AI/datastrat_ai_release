@@ -90,14 +90,13 @@ sed -i.bak "s|^APP_URL=.*|APP_URL=${app_url}|g" .env
 sed -i.bak "s|^NEXT_PUBLIC_API_URL=.*|NEXT_PUBLIC_API_URL=${api_url}|g" .env
 sed -i.bak "s|^OIDC_CALLBACK_URL=.*|OIDC_CALLBACK_URL=${app_url}/api/v1/auth/oidc/callback|g" .env
 sed -i.bak "s|^ZITADEL_PUBLIC_URL=.*|ZITADEL_PUBLIC_URL=${z_public_url}|g" .env
+sed -i.bak "s|^ZITADEL_HOST=.*|ZITADEL_HOST=${auth_host}|g" .env
 
-# Append the new AUTH_ vars so docker-compose can pick them up for Zitadel
-echo "" >> .env
-echo "# Routing Config" >> .env
-echo "AUTH_DOMAIN=${auth_domain}" >> .env
-echo "AUTH_PORT=${auth_port}" >> .env
-echo "AUTH_HOST=${auth_host}" >> .env
-echo "AUTH_SECURE=${auth_secure}" >> .env
+# Update Internal Routing Config
+sed -i.bak "s|^AUTH_DOMAIN=.*|AUTH_DOMAIN=${auth_domain}|g" .env
+sed -i.bak "s|^AUTH_PORT=.*|AUTH_PORT=${auth_port}|g" .env
+sed -i.bak "s|^AUTH_HOST=.*|AUTH_HOST=${auth_host}|g" .env
+sed -i.bak "s|^AUTH_SECURE=.*|AUTH_SECURE=${auth_secure}|g" .env
 
 # --- LLM Settings ---
 echo ""
