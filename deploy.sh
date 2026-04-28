@@ -113,6 +113,7 @@ app_domain=${app_domain:-localhost}
 auth_domain=${auth_domain:-localhost}
 
 if [ "$app_domain" = "localhost" ]; then
+    # Local development — always HTTP, direct ports
     app_url="http://localhost:3000"
     api_url="http://localhost:8000"
     auth_port="8080"
@@ -120,13 +121,26 @@ if [ "$app_domain" = "localhost" ]; then
     auth_secure="false"
     z_public_url="http://localhost:8080"
 else
-    # In production with a domain, Nginx routes over port 80
-    app_url="http://${app_domain}"
-    api_url="http://${app_domain}"
-    auth_port="80"
-    auth_host="${auth_domain}"
-    auth_secure="false" # Change to true if using SSL/HTTPS
-    z_public_url="http://${auth_domain}"
+    # Production domain — ask about SSL
+    read -p "Is SSL/HTTPS enabled (e.g. via Cloudflare, AWS ALB, or Nginx)? (y/N): " use_ssl
+
+    if [[ $use_ssl =~ ^[Yy]$ ]]; then
+        # Production with SSL — HTTPS, port 443
+        app_url="https://${app_domain}"
+        api_url="https://${app_domain}"
+        auth_port="443"
+        auth_host="${auth_domain}"
+        auth_secure="true"
+        z_public_url="https://${auth_domain}"
+    else
+        # Production without SSL — HTTP, port 80
+        app_url="http://${app_domain}"
+        api_url="http://${app_domain}"
+        auth_port="80"
+        auth_host="${auth_domain}"
+        auth_secure="false"
+        z_public_url="http://${auth_domain}"
+    fi
 fi
 
 sed -i.bak "s|^APP_URL=.*|APP_URL=${app_url}|g" .env
@@ -185,6 +199,38 @@ if [[ ! $gen_zitadel =~ ^[Nn]$ ]]; then
     echo "Generated Master Key successfully."
 fi
 
+# --- Security Secrets Generation ---
+echo ""
+echo "--- Security Secrets Generation ---"
+
+# JWT Secret Key
+read -p "Generate a secure random JWT Secret Key? (Y/n): " gen_jwt
+if [[ ! $gen_jwt =~ ^[Nn]$ ]]; then
+    jwt_key=$(openssl rand -base64 48 | tr -d '\n' | cut -c1-64)
+    sed -i.bak "s|^JWT_SECRET_KEY=.*|JWT_SECRET_KEY=${jwt_key}|g" .env
+    echo "Generated JWT Secret Key successfully."
+fi
+
+# Zitadel DB Password
+read -p "Generate a secure random Zitadel DB password? (Y/n): " gen_zdb
+if [[ ! $gen_zdb =~ ^[Nn]$ ]]; then
+    zdb_pass=$(openssl rand -base64 24 | tr -d '\n' | cut -c1-32)
+    sed -i.bak "s|^ZITADEL_DB_PASSWORD=.*|ZITADEL_DB_PASSWORD=${zdb_pass}|g" .env
+    echo "Generated Zitadel DB password successfully."
+fi
+
+# MinIO / S3 credentials (only when using built-in local storage)
+if [[ ! $use_local_storage =~ ^[Nn]$ ]]; then
+    read -p "Generate secure MinIO storage credentials? (Y/n): " gen_minio
+    if [[ ! $gen_minio =~ ^[Nn]$ ]]; then
+        minio_access=$(openssl rand -hex 10)
+        minio_secret=$(openssl rand -base64 32 | tr -d '\n' | cut -c1-40)
+        sed -i.bak "s|^STORAGE_ACCESS_KEY=.*|STORAGE_ACCESS_KEY=${minio_access}|g" .env
+        sed -i.bak "s|^STORAGE_SECRET_KEY=.*|STORAGE_SECRET_KEY=${minio_secret}|g" .env
+        echo "Generated MinIO credentials successfully."
+    fi
+fi
+
 # Cleanup sed backups
 rm -f .env.bak
 
@@ -193,11 +239,11 @@ chmod 600 .env
 
 echo ""
 echo "==========================================================="
-echo "Setup Complete! Your .env file is ready and secured."
+echo "  Setup Complete! Your .env file is ready and secured.    "
 echo "==========================================================="
 echo ""
-echo "To start the application locally (development mode):"
-echo "  docker compose up -d"
+echo "To start the application locally (DEVELOPMENT MODE with hot-reload):"
+echo "  docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d"
 echo ""
 echo "To start the application for PRODUCTION (using docker-compose.prod.yml):"
 echo "  docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d"
