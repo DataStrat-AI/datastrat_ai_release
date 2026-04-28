@@ -31,32 +31,75 @@ if [[ $use_local_storage =~ ^[Nn]$ ]]; then
     echo ""
     echo "[External Managed Infrastructure Mode]"
     
-    read -p "PostgreSQL DATABASE_URL (e.g. postgresql://user:pass@rds.amazonaws.com:5432/db): " db_url
-    read -p "Redis URL (e.g. redis://elasticache.amazonaws.com:6379/0): " redis_url
-    read -p "Qdrant URL (e.g. https://your-cluster.aws.cloud.qdrant.io:6333): " qdrant_url
+    # 1. Database
+    read -p "PostgreSQL Host (e.g. rds.amazonaws.com): " db_host
+    read -p "PostgreSQL Port [5432]: " db_port
+    db_port=${db_port:-5432}
+    read -p "PostgreSQL User [datastrat]: " db_user
+    db_user=${db_user:-datastrat}
+    read -sp "PostgreSQL Password: " db_pass
+    echo ""
+    read -p "PostgreSQL Database Name [datastrat]: " db_name
+    db_name=${db_name:-datastrat}
+    db_url="postgresql://${db_user}:${db_pass}@${db_host}:${db_port}/${db_name}"
+
+    # 2. Redis
+    read -p "Redis Host (e.g. cache.amazonaws.com): " redis_host
+    read -p "Redis Port [6379]: " redis_port
+    redis_port=${redis_port:-6379}
+    redis_url="redis://${redis_host}:${redis_port}/0"
+
+    # 3. Qdrant
+    read -p "Qdrant Host (e.g. qdrant.your-cloud.com): " qdrant_host
+    read -p "Qdrant Port [6333]: " qdrant_port
+    qdrant_port=${qdrant_port:-6333}
+    qdrant_url="http://${qdrant_host}:${qdrant_port}"
     
+    # 4. Storage
     echo ""
     echo "[S3-Compatible Object Storage]"
-    read -p "S3 Endpoint URL (e.g. https://s3.amazonaws.com or https://storage.googleapis.com): " s3_url
-    read -p "S3 Access Key: " s3_access
-    read -p "S3 Secret Key: " s3_secret
-    read -p "S3 Bucket Name: " s3_bucket
+    read -p "Storage Host (e.g. s3.amazonaws.com): " s3_host
+    read -p "Storage Port [443]: " s3_port
+    s3_port=${s3_port:-443}
+    read -p "Storage Access Key: " s3_access
+    read -p "Storage Secret Key: " s3_secret
+    read -p "Storage Bucket Name: " s3_bucket
+    
+    if [ "$s3_port" = "443" ]; then
+        s3_url="https://${s3_host}"
+    else
+        s3_url="http://${s3_host}:${s3_port}"
+    fi
 
     # Replace values in .env
+    sed -i.bak "s|^DB_HOST=.*|DB_HOST=${db_host}|g" .env
+    sed -i.bak "s|^DB_PORT=.*|DB_PORT=${db_port}|g" .env
+    sed -i.bak "s|^DB_USER=.*|DB_USER=${db_user}|g" .env
+    sed -i.bak "s|^DB_PASS=.*|DB_PASS=${db_pass}|g" .env
+    sed -i.bak "s|^DB_NAME=.*|DB_NAME=${db_name}|g" .env
     sed -i.bak "s|^DATABASE_URL=.*|DATABASE_URL=${db_url}|g" .env
+
+    sed -i.bak "s|^REDIS_HOST=.*|REDIS_HOST=${redis_host}|g" .env
+    sed -i.bak "s|^REDIS_PORT=.*|REDIS_PORT=${redis_port}|g" .env
     sed -i.bak "s|^REDIS_URL=.*|REDIS_URL=${redis_url}|g" .env
+
+    sed -i.bak "s|^QDRANT_HOST=.*|QDRANT_HOST=${qdrant_host}|g" .env
+    sed -i.bak "s|^QDRANT_PORT=.*|QDRANT_PORT=${qdrant_port}|g" .env
     sed -i.bak "s|^QDRANT_URL=.*|QDRANT_URL=${qdrant_url}|g" .env
+
+    sed -i.bak "s|^STORAGE_HOST=.*|STORAGE_HOST=${s3_host}|g" .env
+    sed -i.bak "s|^STORAGE_PORT=.*|STORAGE_PORT=${s3_port}|g" .env
     sed -i.bak "s|^STORAGE_ENDPOINT_URL=.*|STORAGE_ENDPOINT_URL=${s3_url}|g" .env
     sed -i.bak "s|^STORAGE_ACCESS_KEY=.*|STORAGE_ACCESS_KEY=${s3_access}|g" .env
     sed -i.bak "s|^STORAGE_SECRET_KEY=.*|STORAGE_SECRET_KEY=${s3_secret}|g" .env
     sed -i.bak "s|^STORAGE_BUCKET_NAME=.*|STORAGE_BUCKET_NAME=${s3_bucket}|g" .env
     
     # We leave COMPOSE_PROFILES empty so local storage containers don't start
-    echo "COMPOSE_PROFILES=" >> .env
+    sed -i.bak "s|^COMPOSE_PROFILES=.*|COMPOSE_PROFILES=|g" .env
 else
     # User is using local storage
     echo "Using default local storage containers."
-    echo "COMPOSE_PROFILES=local-storage" >> .env
+    sed -i.bak "s|^COMPOSE_PROFILES=.*|COMPOSE_PROFILES=local-storage|g" .env
 fi
 
 # --- Domain & Routing Setup ---

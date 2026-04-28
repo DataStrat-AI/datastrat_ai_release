@@ -2,20 +2,29 @@ services:
   # ---------------------------------------------------------------------------
   # API Gateway & Chat Service (FastAPI)
   # ---------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # API Gateway & Chat Service (FastAPI)
+  # ---------------------------------------------------------------------------
   api:
     image: ghcr.io/datastrat-ai/datastrat_ai-api:${APP_VERSION:-latest}
     container_name: datastrat_api
     ports:
       - "8000:8000"
     environment:
-      - REDIS_URL=${REDIS_URL}
       - DATABASE_URL=${DATABASE_URL}
+      - DB_HOST=${DB_HOST:-postgres}
+      - DB_PORT=${DB_PORT:-5432}
+      - REDIS_URL=${REDIS_URL}
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
       - QDRANT_URL=${QDRANT_URL}
-      - S3_ENDPOINT_URL=${S3_ENDPOINT_URL:-http://minio:9000}
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-admin}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-minioadmin}
-      - S3_BUCKET_NAME=${S3_BUCKET_NAME:-datastrat-evidence}
-      - ZITADEL_URL=${ZITADEL_URL:-http://zitadel:8080}
+      - QDRANT_HOST=${QDRANT_HOST:-qdrant}
+      - S3_ENDPOINT_URL=${STORAGE_ENDPOINT_URL:-http://minio:9000}
+      - STORAGE_HOST=${STORAGE_HOST:-minio}
+      - AWS_ACCESS_KEY_ID=${STORAGE_ACCESS_KEY:-admin}
+      - AWS_SECRET_ACCESS_KEY=${STORAGE_SECRET_KEY:-minioadmin}
+      - S3_BUCKET_NAME=${STORAGE_BUCKET_NAME:-datastrat-evidence}
+      - ZITADEL_URL=${ZITADEL_INTERNAL_URL:-http://zitadel:8080}
       - ZITADEL_PUBLIC_URL=${ZITADEL_PUBLIC_URL:-http://localhost:8080}
       - ZITADEL_HOST=${AUTH_HOST:-localhost:8080}
       - ZITADEL_CREDENTIALS_FILE=/zitadel-config/credentials.json
@@ -29,14 +38,19 @@ services:
       - LLM_API_KEY=${LLM_API_KEY}
       - LLM_MODEL=${LLM_MODEL}
       - LLM_BASE_URL=${LLM_BASE_URL}
-      # Tracing disabled for production by default to protect client data privacy
-      # - LANGCHAIN_TRACING_V2=${LANGCHAIN_TRACING_V2}
-      # - LANGSMITH_API_KEY=${LANGSMITH_API_KEY}
-      # - LANGSMITH_PROJECT=${LANGSMITH_PROJECT}
-      # - LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT}
+      - ENVIRONMENT=${ENVIRONMENT:-development}
     depends_on:
       zitadel_init:
         condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+        required: false
+      redis:
+        condition: service_healthy
+        required: false
+      qdrant:
+        condition: service_healthy
+        required: false
     volumes:
       - zitadel_config:/zitadel-config:ro
     networks:
@@ -50,17 +64,30 @@ services:
     image: ghcr.io/datastrat-ai/datastrat_ai-worker:${APP_VERSION:-latest}
     container_name: datastrat_worker
     environment:
-      - REDIS_URL=${REDIS_URL}
       - DATABASE_URL=${DATABASE_URL}
+      - DB_HOST=${DB_HOST:-postgres}
+      - DB_PORT=${DB_PORT:-5432}
+      - REDIS_URL=${REDIS_URL}
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
       - QDRANT_URL=${QDRANT_URL}
-      - S3_ENDPOINT_URL=${S3_ENDPOINT_URL:-http://minio:9000}
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-admin}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-minioadmin}
-      - S3_BUCKET_NAME=${S3_BUCKET_NAME:-datastrat-evidence}
+      - QDRANT_HOST=${QDRANT_HOST:-qdrant}
+      - S3_ENDPOINT_URL=${STORAGE_ENDPOINT_URL:-http://minio:9000}
+      - STORAGE_HOST=${STORAGE_HOST:-minio}
+      - AWS_ACCESS_KEY_ID=${STORAGE_ACCESS_KEY:-admin}
+      - AWS_SECRET_ACCESS_KEY=${STORAGE_SECRET_KEY:-minioadmin}
+      - S3_BUCKET_NAME=${STORAGE_BUCKET_NAME:-datastrat-evidence}
       - LLM_PROVIDER=${LLM_PROVIDER}
       - LLM_API_KEY=${LLM_API_KEY}
       - LLM_MODEL=${LLM_MODEL}
       - LLM_BASE_URL=${LLM_BASE_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
+      redis:
+        condition: service_healthy
+        required: false
     networks:
       - db_net
 
@@ -188,6 +215,11 @@ services:
     profiles: ["local-storage"]
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - db_net
 
@@ -205,7 +237,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-datastrat}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -216,6 +248,9 @@ services:
     image: ghcr.io/datastrat-ai/datastrat_ai-db-init:${APP_VERSION:-latest}
     container_name: datastrat_db_init
     profiles: ["local-storage"]
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
       DATABASE_URL: ${DATABASE_URL}
     networks:
@@ -230,6 +265,11 @@ services:
       - "6334:6334"
     volumes:
       - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - db_net
 
