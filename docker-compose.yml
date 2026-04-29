@@ -42,6 +42,8 @@ services:
       - LLM_MODEL=${LLM_MODEL}
       - LLM_BASE_URL=${LLM_BASE_URL}
       - ENVIRONMENT=${ENVIRONMENT:-development}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-}
+      - COOKIE_DOMAIN=${COOKIE_DOMAIN:-}
     depends_on:
       zitadel_init:
         condition: service_completed_successfully

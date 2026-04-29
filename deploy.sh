@@ -228,6 +228,29 @@ sed -i.bak "s|^AUTH_HOST=.*|AUTH_HOST=${auth_host}|g" .env
 sed -i.bak "s|^AUTH_SECURE=.*|AUTH_SECURE=${auth_secure}|g" .env
 sed -i.bak "s|^AUTH_TLS_MODE=.*|AUTH_TLS_MODE=${auth_tls_mode}|g" .env
 
+# --- Production Security Logic ---
+# Calculate Cookie Domain (strip leading subdomains)
+# Example: app.datastrat.ai -> .datastrat.ai
+cookie_domain=".$(echo $app_domain | rev | cut -d. -f1-2 | rev)"
+if [[ "$app_domain" == "localhost" ]]; then
+    cookie_domain=""
+fi
+
+# Calculate Allowed Origins for CORS
+allowed_origins="${app_url}"
+
+# Update .env with calculated security settings
+sed -i.bak "s|^COOKIE_DOMAIN=.*|COOKIE_DOMAIN=${cookie_domain}|g" .env
+sed -i.bak "s|^ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=${allowed_origins}|g" .env
+
+# Ensure JWT_SECRET_KEY is stable and secure
+current_jwt=$(grep "^JWT_SECRET_KEY=" .env | cut -d= -f2)
+if [[ -z "$current_jwt" || "$current_jwt" == "change-me-in-production" ]]; then
+    new_jwt=$(openssl rand -hex 32 2>/dev/null || echo "ds-$(date +%s)-$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 16)")
+    sed -i.bak "s|^JWT_SECRET_KEY=.*|JWT_SECRET_KEY=${new_jwt}|g" .env
+    echo "Generated new secure JWT_SECRET_KEY."
+fi
+
 # --- LLM Settings ---
 echo ""
 echo "--- LLM (Language Model) Setup ---"
