@@ -317,13 +317,21 @@ fi
 
 # MinIO / S3 credentials (only when using built-in local storage)
 if [[ ! $use_local_storage =~ ^[Nn]$ ]]; then
-    read -p "Generate secure MinIO storage credentials? (Y/n): " gen_minio
-    if [[ ! $gen_minio =~ ^[Nn]$ ]]; then
-        minio_access=$(openssl rand -hex 10)
-        minio_secret=$(openssl rand -base64 32 | tr -d '\n' | cut -c1-40)
-        sed -i.bak "s|^STORAGE_ACCESS_KEY=.*|STORAGE_ACCESS_KEY=${minio_access}|g" .env
-        sed -i.bak "s|^STORAGE_SECRET_KEY=.*|STORAGE_SECRET_KEY=${minio_secret}|g" .env
-        echo "Generated MinIO credentials successfully."
+    # Check if credentials already exist
+    existing_access=$(grep "^STORAGE_ACCESS_KEY=" .env | cut -d= -f2)
+    existing_secret=$(grep "^STORAGE_SECRET_KEY=" .env | cut -d= -f2)
+    
+    if [[ -z "$existing_access" || "$existing_access" == "admin" || -z "$existing_secret" || "$existing_secret" == "minioadmin" ]]; then
+        read -p "Generate secure MinIO storage credentials? (Y/n): " gen_minio
+        if [[ ! $gen_minio =~ ^[Nn]$ ]]; then
+            minio_access=$(openssl rand -hex 10)
+            minio_secret=$(openssl rand -base64 32 | tr -d '\n' | cut -c1-40)
+            sed -i.bak "s|^STORAGE_ACCESS_KEY=.*|STORAGE_ACCESS_KEY=${minio_access}|g" .env
+            sed -i.bak "s|^STORAGE_SECRET_KEY=.*|STORAGE_SECRET_KEY=${minio_secret}|g" .env
+            echo "Generated new MinIO credentials successfully."
+        fi
+    else
+        echo "Preserving existing MinIO credentials."
     fi
 fi
 

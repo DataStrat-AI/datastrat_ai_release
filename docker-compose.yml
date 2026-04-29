@@ -22,10 +22,14 @@ services:
       - REDIS_PORT=${REDIS_PORT:-6379}
       - QDRANT_URL=${QDRANT_URL:-}
       - QDRANT_HOST=${QDRANT_HOST:-qdrant}
+      - STORAGE_ENDPOINT_URL=${STORAGE_ENDPOINT_URL:-}
       - S3_ENDPOINT_URL=${STORAGE_ENDPOINT_URL:-}
       - STORAGE_HOST=${STORAGE_HOST:-minio}
+      - STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY:-admin}
       - AWS_ACCESS_KEY_ID=${STORAGE_ACCESS_KEY:-admin}
+      - STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY:-minioadmin}
       - AWS_SECRET_ACCESS_KEY=${STORAGE_SECRET_KEY:-minioadmin}
+      - STORAGE_BUCKET_NAME=${STORAGE_BUCKET_NAME:-datastrat-evidence}
       - S3_BUCKET_NAME=${STORAGE_BUCKET_NAME:-datastrat-evidence}
       - ZITADEL_URL=${ZITADEL_INTERNAL_URL:-http://zitadel:8080}
       - ZITADEL_PUBLIC_URL=${ZITADEL_PUBLIC_URL:-http://localhost:8080}
@@ -80,10 +84,14 @@ services:
       - REDIS_PORT=${REDIS_PORT:-6379}
       - QDRANT_URL=${QDRANT_URL:-}
       - QDRANT_HOST=${QDRANT_HOST:-qdrant}
+      - STORAGE_ENDPOINT_URL=${STORAGE_ENDPOINT_URL:-http://minio:9000}
       - S3_ENDPOINT_URL=${STORAGE_ENDPOINT_URL:-http://minio:9000}
       - STORAGE_HOST=${STORAGE_HOST:-minio}
+      - STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY:-admin}
       - AWS_ACCESS_KEY_ID=${STORAGE_ACCESS_KEY:-admin}
+      - STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY:-minioadmin}
       - AWS_SECRET_ACCESS_KEY=${STORAGE_SECRET_KEY:-minioadmin}
+      - STORAGE_BUCKET_NAME=${STORAGE_BUCKET_NAME:-datastrat-evidence}
       - S3_BUCKET_NAME=${STORAGE_BUCKET_NAME:-datastrat-evidence}
       - LLM_PROVIDER=${LLM_PROVIDER}
       - LLM_API_KEY=${LLM_API_KEY}
@@ -295,6 +303,11 @@ services:
     volumes:
       - minio_data:/data
     command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "sh", "-c", ":> /dev/tcp/localhost/9000"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     networks:
       - db_net
 
@@ -304,9 +317,22 @@ services:
     profiles: [ "local-storage" ]
     depends_on:
       minio:
-        condition: service_started
+        condition: service_healthy
+    environment:
+      STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY:-admin}
+      STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY:-minioadmin}
     entrypoint: >
-      /bin/sh -c " /usr/bin/mc alias set datastrat http://minio:9000 $${STORAGE_ACCESS_KEY:-admin} $${STORAGE_SECRET_KEY:-minioadmin}; /usr/bin/mc mb datastrat/datastrat-evidence --ignore-existing; /usr/bin/mc anonymous set private datastrat/datastrat-evidence; exit 0; "
+      /bin/sh -c "
+      echo 'Waiting for MinIO to be ready...';
+      until /usr/bin/mc alias set datastrat http://minio:9000 $${STORAGE_ACCESS_KEY} $${STORAGE_SECRET_KEY}; do
+        echo 'MinIO not ready, retrying in 2 seconds...';
+        sleep 2;
+      done;
+      /usr/bin/mc mb datastrat/datastrat-evidence --ignore-existing;
+      /usr/bin/mc anonymous set private datastrat/datastrat-evidence;
+      echo 'Storage initialization complete.';
+      exit 0;
+      "
     networks:
       - db_net
 
