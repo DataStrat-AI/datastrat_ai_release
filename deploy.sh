@@ -123,9 +123,10 @@ if [ "$app_domain" = "localhost" ]; then
     auth_port="8080"
     auth_host="localhost:8080"
     auth_secure="false"
+    auth_tls_mode="disabled"
     z_public_url="http://localhost:8080"
-    # No custom headers needed for localhost
-    echo "" > nginx/headers.map
+    # No custom headers needed for localhost - default to scheme
+    echo "map \$http_x_forwarded_proto \$pref_proto { default \$scheme; }" > nginx/headers.map
     echo "" > nginx/ssl.conf
 else
     # Production domain — ask about SSL
@@ -143,6 +144,7 @@ else
             auth_port="443"
             auth_host="${auth_domain}"
             auth_secure="true"
+            auth_tls_mode="external"
             z_public_url="https://${auth_domain}"
             
             # Force Zitadel to believe it's HTTPS regardless of port 80 traffic
@@ -157,6 +159,7 @@ else
             auth_port="443"
             auth_host="${auth_domain}"
             auth_secure="true"
+            auth_tls_mode="external"
             z_public_url="https://${auth_domain}"
 
             echo "map \$http_x_forwarded_proto \$pref_proto { default \$scheme; }" > nginx/headers.map
@@ -203,8 +206,9 @@ else
             auth_port="80"
             auth_host="${auth_domain}"
             auth_secure="false"
+            auth_tls_mode="disabled"
             z_public_url="http://${auth_domain}"
-            echo "" > nginx/headers.map
+            echo "map \$http_x_forwarded_proto \$pref_proto { default \$scheme; }" > nginx/headers.map
             echo "" > nginx/ssl.conf
             echo "Configured for Plain HTTP (Port 80)."
             ;;
@@ -222,6 +226,7 @@ sed -i.bak "s|^AUTH_DOMAIN=.*|AUTH_DOMAIN=${auth_domain}|g" .env
 sed -i.bak "s|^AUTH_PORT=.*|AUTH_PORT=${auth_port}|g" .env
 sed -i.bak "s|^AUTH_HOST=.*|AUTH_HOST=${auth_host}|g" .env
 sed -i.bak "s|^AUTH_SECURE=.*|AUTH_SECURE=${auth_secure}|g" .env
+sed -i.bak "s|^AUTH_TLS_MODE=.*|AUTH_TLS_MODE=${auth_tls_mode}|g" .env
 
 # --- LLM Settings ---
 echo ""
