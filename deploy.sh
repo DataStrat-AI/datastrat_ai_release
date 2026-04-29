@@ -112,6 +112,10 @@ read -p "Enter your authentication domain for Zitadel (e.g., auth.datastrat.ai o
 app_domain=${app_domain:-localhost}
 auth_domain=${auth_domain:-localhost}
 
+# Prepare directories
+mkdir -p nginx certs
+touch nginx/headers.map nginx/ssl.conf
+
 if [ "$app_domain" = "localhost" ]; then
     # Local development — always HTTP, direct ports
     app_url="http://localhost:3000"
@@ -120,27 +124,91 @@ if [ "$app_domain" = "localhost" ]; then
     auth_host="localhost:8080"
     auth_secure="false"
     z_public_url="http://localhost:8080"
+    # No custom headers needed for localhost
+    echo "" > nginx/headers.map
+    echo "" > nginx/ssl.conf
 else
     # Production domain — ask about SSL
-    read -p "Is SSL/HTTPS enabled (e.g. via Cloudflare, AWS ALB, or Nginx)? (y/N): " use_ssl
+    echo "Is SSL/HTTPS enabled for this deployment?"
+    echo "1) Yes, handled by an External Load Balancer (Cloudflare, AWS ALB, Azure Gateway)"
+    echo "2) Yes, handled by This Machine (Nginx)"
+    echo "3) No (Plain HTTP)"
+    read -p "Select option (1-3): " ssl_mode
 
-    if [[ $use_ssl =~ ^[Yy]$ ]]; then
-        # Production with SSL — HTTPS, port 443
-        app_url="https://${app_domain}"
-        api_url="https://${app_domain}"
-        auth_port="443"
-        auth_host="${auth_domain}"
-        auth_secure="true"
-        z_public_url="https://${auth_domain}"
-    else
-        # Production without SSL — HTTP, port 80
-        app_url="http://${app_domain}"
-        api_url="http://${app_domain}"
-        auth_port="80"
-        auth_host="${auth_domain}"
-        auth_secure="false"
-        z_public_url="http://${auth_domain}"
-    fi
+    case $ssl_mode in
+        1)
+            # Mode: External SSL (SSL Offloading)
+            app_url="https://${app_domain}"
+            api_url="https://${app_domain}"
+            auth_port="443"
+            auth_host="${auth_domain}"
+            auth_secure="true"
+            z_public_url="https://${auth_domain}"
+            
+            # Force Zitadel to believe it's HTTPS regardless of port 80 traffic
+            echo "map \$http_x_forwarded_proto \$pref_proto { default https; }" > nginx/headers.map
+            echo "" > nginx/ssl.conf
+            echo "Configured for External SSL (Port 80 to VM, HTTPS to User)."
+            ;;
+        2)
+            # Mode: Local SSL (Nginx handles certs)
+            app_url="https://${app_domain}"
+            api_url="https://${app_domain}"
+            auth_port="443"
+            auth_host="${auth_domain}"
+            auth_secure="true"
+            z_public_url="https://${auth_domain}"
+
+            echo "map \$http_x_forwarded_proto \$pref_proto { default \$scheme; }" > nginx/headers.map
+            
+            echo "SSL Certificate Selection:"
+            echo "1) Generate a Self-Signed Certificate (Quick start)"
+            echo "2) Provide paths to existing .crt and .key files"
+            read -p "Select option (1-2): " cert_mode
+
+            if [ "$cert_mode" = "1" ]; then
+                if command -v openssl >/dev/null 2>&1; then
+                    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+                        -keyout certs/datastrat.key -out certs/datastrat.crt \
+                        -subj "/C=US/ST=State/L=City/O=DataStrat/OU=IT/CN=${app_domain}"
+                    sed -i.bak "s|^SSL_CERT_PATH=.*|SSL_CERT_PATH=./certs/datastrat.crt|g" .env
+                    sed -i.bak "s|^SSL_KEY_PATH=.*|SSL_KEY_PATH=./certs/datastrat.key|g" .env
+                    echo "Self-signed certificates generated in ./certs/"
+                else
+                    echo "Error: openssl not found. Please install it or provide paths to existing certs."
+                    exit 1
+                fi
+            else
+                read -p "Enter absolute path to your .crt file: " cert_path
+                read -p "Enter absolute path to your .key file: " key_path
+                sed -i.bak "s|^SSL_CERT_PATH=.*|SSL_CERT_PATH=${cert_path}|g" .env
+                sed -i.bak "s|^SSL_KEY_PATH=.*|SSL_KEY_PATH=${key_path}|g" .env
+            fi
+
+            # Populate the SSL server block from template
+            if [ -f "nginx/ssl.conf.template" ]; then
+                cp nginx/ssl.conf.template nginx/ssl.conf
+                # Replace variables in the template
+                sed -i.bak "s|\${APP_DOMAIN}|${app_domain}|g" nginx/ssl.conf
+                sed -i.bak "s|\${AUTH_DOMAIN}|${auth_domain}|g" nginx/ssl.conf
+            else
+                echo "Warning: nginx/ssl.conf.template not found. Skipping Port 443 setup."
+            fi
+            echo "Configured for Local SSL (Port 443 enabled)."
+            ;;
+        *)
+            # Mode: No SSL
+            app_url="http://${app_domain}"
+            api_url="http://${app_domain}"
+            auth_port="80"
+            auth_host="${auth_domain}"
+            auth_secure="false"
+            z_public_url="http://${auth_domain}"
+            echo "" > nginx/headers.map
+            echo "" > nginx/ssl.conf
+            echo "Configured for Plain HTTP (Port 80)."
+            ;;
+    esac
 fi
 
 sed -i.bak "s|^APP_URL=.*|APP_URL=${app_url}|g" .env

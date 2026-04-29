@@ -147,7 +147,7 @@ services:
       ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME: zitadel
       ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD: ${ZITADEL_DB_PASSWORD:-zitadel_secure_password}
       ZITADEL_DATABASE_POSTGRES_ADMIN_SSL_MODE: disable
-      ZITADEL_EXTERNALSECURE: "${AUTH_SECURE:-false}"
+      ZITADEL_EXTERNALSECURE: "${AUTH_SECURE}"
       ZITADEL_EXTERNALDOMAIN: "${AUTH_DOMAIN:-localhost}"
       ZITADEL_EXTERNALPORT: "${AUTH_PORT:-8080}"
       ZITADEL_DEFAULTINSTANCE_LOGINVERSION: 1
@@ -322,6 +322,12 @@ services:
     ports:
       - "80:80"
       - "8080:8080"
+      - "443:443"
+    volumes:
+      - ${SSL_CERT_PATH:-./certs/datastrat.crt}:/etc/nginx/ssl/cert.pem:ro
+      - ${SSL_KEY_PATH:-./certs/datastrat.key}:/etc/nginx/ssl/key.pem:ro
+      - ./nginx/ssl.conf:/etc/nginx/conf.d/ssl.conf:ro
+      - ./nginx/headers.map:/etc/nginx/conf.d/headers.map:ro
     depends_on:
       - ui
       - api
