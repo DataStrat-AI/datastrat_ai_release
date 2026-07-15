@@ -97,6 +97,7 @@ services:
       - LLM_API_KEY=${LLM_API_KEY}
       - LLM_MODEL=${LLM_MODEL}
       - LLM_BASE_URL=${LLM_BASE_URL}
+      - CELERY_CONCURRENCY=${CELERY_CONCURRENCY:-4}
     depends_on:
       postgres:
         condition: service_healthy
