@@ -49,6 +49,8 @@ services:
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-}
       - COOKIE_DOMAIN=${COOKIE_DOMAIN:-}
     depends_on:
+      db_init:
+        condition: service_completed_successfully
       zitadel_init:
         condition: service_completed_successfully
       postgres:
@@ -265,10 +267,10 @@ services:
   db_init:
     image: ghcr.io/datastrat-ai/datastrat_ai-db-init:${APP_VERSION:-latest}
     container_name: datastrat_db_init
-    profiles: [ "local-storage" ]
     depends_on:
       postgres:
         condition: service_healthy
+        required: false
     environment:
       DATABASE_URL: ${DATABASE_URL:-}
       DB_HOST: ${DB_HOST:-postgres}

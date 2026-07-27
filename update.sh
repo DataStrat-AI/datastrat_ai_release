@@ -1,29 +1,101 @@
 #!/bin/bash
 # =============================================================================
-# DataStrat AI - Automated Update Utility & Configuration Auditor
+# DataStrat AI - Automated Update & Release Sync Utility
 # =============================================================================
+
+set -e
 
 echo "==========================================================="
 echo "        DataStrat AI - Automated Update Utility           "
 echo "==========================================================="
 echo ""
 
+TEMP_DIR="/tmp/datastrat-update-$$"
+RELEASE_ZIP_URL="https://github.com/DataStrat-AI/datastrat_ai_release/releases/latest/download/datastrat-enterprise-deployment.zip"
+
 # -----------------------------------------------------------------------------
-# Smart .env Audit & Auto-Migration Utility
+# STAGE 1: Fetch Latest Release Archive from GitHub
+# -----------------------------------------------------------------------------
+if [ "$1" != "--skip-fetch" ]; then
+    echo "[Stage 1/5] Fetching latest release package from GitHub Releases..."
+    mkdir -p "$TEMP_DIR"
+
+    FETCH_SUCCESS=false
+    if command -v curl >/dev/null 2>&1; then
+        if curl -sSL "$RELEASE_ZIP_URL" -o "$TEMP_DIR/release.zip"; then
+            FETCH_SUCCESS=true
+        fi
+    elif command -v wget >/dev/null 2>&1; then
+        if wget -q "$RELEASE_ZIP_URL" -O "$TEMP_DIR/release.zip"; then
+            FETCH_SUCCESS=true
+        fi
+    fi
+
+    if [ "$FETCH_SUCCESS" = true ] && [ -s "$TEMP_DIR/release.zip" ]; then
+        echo "-> Latest release archive downloaded successfully."
+        
+        echo "[Stage 2/5] Unpacking and updating deployment configurations..."
+        if command -v unzip >/dev/null 2>&1; then
+            unzip -q -o "$TEMP_DIR/release.zip" -d "$TEMP_DIR/extracted"
+        else
+            echo "Warning: 'unzip' utility not found. Skipping file extraction."
+        fi
+
+        if [ -d "$TEMP_DIR/extracted" ]; then
+            # Check if update.sh itself was updated and trigger self-re-execution
+            SELF_HASH_BEFORE=""
+            SELF_HASH_AFTER=""
+            if command -v sha256sum >/dev/null 2>&1; then
+                SELF_HASH_BEFORE=$(sha256sum "$0" | awk '{print $1}')
+                SELF_HASH_AFTER=$(sha256sum "$TEMP_DIR/extracted/update.sh" 2>/dev/null | awk '{print $1}')
+            elif command -v md5 >/dev/null 2>&1; then
+                SELF_HASH_BEFORE=$(md5 -q "$0")
+                SELF_HASH_AFTER=$(md5 -q "$TEMP_DIR/extracted/update.sh" 2>/dev/null)
+            fi
+
+            # Sync extracted files excluding runtime host state (.env, certs/)
+            if command -v rsync >/dev/null 2>&1; then
+                rsync -av --exclude='.env' --exclude='certs/' "$TEMP_DIR/extracted/" ./ >/dev/null 2>&1 || true
+            else
+                # Fallback copy
+                cp -r "$TEMP_DIR/extracted/"* ./ 2>/dev/null || true
+            fi
+            chmod +x deploy.sh update.sh 2>/dev/null || true
+
+            # If update.sh itself was updated, re-execute the new script process
+            if [ -n "$SELF_HASH_BEFORE" ] && [ -n "$SELF_HASH_AFTER" ] && [ "$SELF_HASH_BEFORE" != "$SELF_HASH_AFTER" ]; then
+                echo "-> Update script was upgraded to the latest version. Re-executing pipeline..."
+                rm -rf "$TEMP_DIR"
+                exec "$0" --skip-fetch "$@"
+            fi
+        fi
+    else
+        echo "Notice: Could not fetch latest release archive. Proceeding with existing local configuration files."
+    fi
+
+    # Clean up temp folder
+    rm -rf "$TEMP_DIR"
+else
+    echo "-> Skipping release download (re-executed from updated script)."
+fi
+
+# -----------------------------------------------------------------------------
+# STAGE 2: Environment Configuration Auditor (.env Sync)
 # -----------------------------------------------------------------------------
 if [ -f ".env" ] && [ -f ".env.example" ]; then
-    echo "Auditing environment configuration (.env)..."
+    echo ""
+    echo "[Stage 3/5] Auditing environment configuration (.env)..."
     
     MISSING_KEYS=()
-    while IFS='=' read -r key val || [ -n "$key" ]; do
-        # Ignore comments and empty lines
-        [[ "$key" =~ ^#.*$ ]] && continue
-        [[ -z "$key" ]] && continue
+    while IFS= read -r line || [ -n "$line" ]; do
+        # Ignore comments and blank lines
+        [[ "$line" =~ ^[[:space:]]*# ]] && continue
+        [[ "$line" =~ ^[[:space:]]*$ ]] && continue
         
-        # Clean variable name
-        var_name=$(echo "$key" | xargs)
+        var_name=$(echo "$line" | cut -d '=' -f 1 | xargs)
+        [ -z "$var_name" ] && continue
         
-        if ! grep -q "^${var_name}=" .env && ! grep -q "^${var_name} =" .env; then
+        if ! grep -qE "^[[:space:]]*${var_name}[[:space:]]*=" .env; then
             MISSING_KEYS+=("$var_name")
         fi
     done < .env.example
@@ -31,10 +103,10 @@ if [ -f ".env" ] && [ -f ".env.example" ]; then
     if [ ${#MISSING_KEYS[@]} -gt 0 ]; then
         echo ""
         echo "==========================================================="
-        echo "   DataStrat AI - New Configuration Settings Detected      "
+        echo "        DataStrat AI - Configuration Auditor             "
         echo "==========================================================="
-        echo "New services or features were introduced in this update."
-        echo "We will now configure the missing settings for your server."
+        echo "New features have been added to the application!"
+        echo "We need a few quick details to configure them for your server."
         echo ""
 
         IS_INTERACTIVE=false
@@ -43,7 +115,7 @@ if [ -f ".env" ] && [ -f ".env.example" ]; then
         fi
 
         for var in "${MISSING_KEYS[@]}"; do
-            default_val=$(grep "^${var}=" .env.example | cut -d '=' -f 2-)
+            default_val=$(grep -E "^[[:space:]]*${var}[[:space:]]*=" .env.example | cut -d '=' -f 2- | xargs)
 
             case "$var" in
                 GRAFANA_ADMIN_USER)
@@ -99,18 +171,22 @@ if [ -f ".env" ] && [ -f ".env.example" ]; then
     fi
 fi
 
-echo "Pulling latest Docker images..."
-docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+# -----------------------------------------------------------------------------
+# STAGE 3: Pull Latest Images & Recycle Stack
+# -----------------------------------------------------------------------------
+echo ""
+echo "[Stage 4/5] Pulling latest Docker container images from GHCR..."
+docker compose -f docker-compose.yml -f docker-compose.prod.yml pull || docker compose pull
 
 echo ""
-echo "Recreating and restarting containers with new images..."
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-
-echo ""
-echo "Cleaning up dangling and unused images to free up space..."
+echo "[Stage 5/5] Recrafting and restarting container stack..."
+docker compose -f docker-compose.yml -f docker-compose.prod.yml down || docker compose down
 docker image prune -f
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d || docker compose up -d
 
 echo ""
 echo "==========================================================="
-echo "Update Complete! The application is running the latest version."
+echo " Update Complete! Application is running the latest version."
 echo "==========================================================="
+echo ""
+docker compose ps
