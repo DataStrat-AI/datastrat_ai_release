@@ -174,13 +174,13 @@ fi
 # STAGE 3: Pull Latest Images & Recycle Stack
 # -----------------------------------------------------------------------------
 echo ""
-echo "[Stage 4/5] Pulling latest Docker container images from GHCR..."
+echo "[Stage 4/5] Reclaiming disk space and pulling latest Docker container images..."
+docker image prune -a -f
 docker compose -f docker-compose.yml -f docker-compose.prod.yml pull || docker compose pull
 
 echo ""
 echo "[Stage 5/5] Recrafting and restarting container stack..."
 docker compose -f docker-compose.yml -f docker-compose.prod.yml down || docker compose down
-docker image prune -f
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d || docker compose up -d
 
 echo ""

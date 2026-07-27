@@ -232,7 +232,7 @@ sed -i.bak "s|^AUTH_TLS_MODE=.*|AUTH_TLS_MODE=${auth_tls_mode}|g" .env
 # Calculate Cookie Domain (strip leading subdomains)
 # Example: app.datastrat.ai -> .datastrat.ai
 cookie_domain=".$(echo $app_domain | rev | cut -d. -f1-2 | rev)"
-if [[ "$app_domain" == "localhost" ]]; then
+if [[ "$app_domain" == "localhost" || "$app_domain" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     cookie_domain=""
 fi
 
