@@ -359,6 +359,48 @@ services:
       - frontend_net
       - backend_net
 
+  # ---------------------------------------------------------------------------
+  # Monitoring & Observability Stack (Loki, Promtail, Grafana)
+  # ---------------------------------------------------------------------------
+  loki:
+    image: grafana/loki:2.9.4
+    container_name: datastrat_loki
+    volumes:
+      - ./monitoring/loki-config.yml:/etc/loki/local-config.yaml:ro
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - backend_net
+
+  promtail:
+    image: grafana/promtail:2.9.4
+    container_name: datastrat_promtail
+    volumes:
+      - ./monitoring/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    networks:
+      - backend_net
+
+  grafana:
+    image: grafana/grafana:10.2.3
+    container_name: datastrat_grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+      - GF_SERVER_ROOT_URL=%(protocol)s://%(domain)s/grafana/
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - loki
+    networks:
+      - backend_net
+
 volumes:
   postgres_data:
   qdrant_data:
@@ -366,6 +408,7 @@ volumes:
   zitadel_db_data:
   zitadel_config:
   zitadel_machinekey:
+  grafana_data:
 
 networks:
   frontend_net:
@@ -374,3 +417,4 @@ networks:
     driver: bridge
   db_net:
     driver: bridge
+

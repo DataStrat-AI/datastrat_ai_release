@@ -330,10 +330,23 @@ if [[ ! $use_local_storage =~ ^[Nn]$ ]]; then
             sed -i.bak "s|^STORAGE_SECRET_KEY=.*|STORAGE_SECRET_KEY=${minio_secret}|g" .env
             echo "Generated new MinIO credentials successfully."
         fi
-    else
         echo "Preserving existing MinIO credentials."
     fi
 fi
+
+# --- Grafana Admin Credentials ---
+echo ""
+echo "--- Monitoring & Observability Setup (Grafana) ---"
+read -p "Enter Grafana Admin Username [admin]: " grafana_user
+grafana_user=${grafana_user:-admin}
+read -p "Enter Grafana Admin Password (press Enter to generate a secure random password): " grafana_pass
+if [ -z "$grafana_pass" ]; then
+    grafana_pass=$(openssl rand -hex 12 2>/dev/null || date +%s | md5sum | head -c 16)
+    echo "Generated Grafana Admin Password: ${grafana_pass}"
+fi
+
+sed -i.bak "s|^GRAFANA_ADMIN_USER=.*|GRAFANA_ADMIN_USER=${grafana_user}|g" .env
+sed -i.bak "s|^GRAFANA_ADMIN_PASSWORD=.*|GRAFANA_ADMIN_PASSWORD=${grafana_pass}|g" .env
 
 # Cleanup sed backups
 rm -f .env.bak
