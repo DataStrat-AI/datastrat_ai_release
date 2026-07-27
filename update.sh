@@ -57,7 +57,6 @@ if [ "$1" != "--skip-fetch" ]; then
             if command -v rsync >/dev/null 2>&1; then
                 rsync -av --exclude='.env' --exclude='certs/' "$TEMP_DIR/extracted/" ./ >/dev/null 2>&1 || true
             else
-                # Fallback copy
                 cp -r "$TEMP_DIR/extracted/"* ./ 2>/dev/null || true
             fi
             chmod +x deploy.sh update.sh 2>/dev/null || true
