@@ -355,6 +355,7 @@ services:
     depends_on:
       - ui
       - api
+      - grafana
     networks:
       - frontend_net
       - backend_net
