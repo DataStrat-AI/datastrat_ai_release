@@ -150,6 +150,30 @@ if [ -f ".env" ] && [ -f ".env.example" ]; then
                         val="$auto_secret"
                     fi
                     ;;
+                CELERY_CONCURRENCY)
+                    echo "-----------------------------------------------------------"
+                    echo "[ Worker Performance - Ingestion Concurrency ]"
+                    echo "Number of parallel documents to process at once."
+                    echo "Recommended: 1 for <=4GB RAM (local dev), 2 for 8GB-16GB RAM, 4+ for 32GB+ RAM"
+                    if [ "$IS_INTERACTIVE" = true ]; then
+                        read -p "Worker Concurrency [${default_val}]: " user_input
+                        val=${user_input:-$default_val}
+                    else
+                        val="$default_val"
+                    fi
+                    ;;
+                CELERY_MAX_TASKS_PER_CHILD)
+                    echo "-----------------------------------------------------------"
+                    echo "[ Worker Memory Management - Task Lifecycle ]"
+                    echo "Number of document tasks a worker handles before recycling memory back to OS."
+                    echo "Recommended: 1 for low-RAM dev VMs (prevents OOMs), 10 for standard production"
+                    if [ "$IS_INTERACTIVE" = true ]; then
+                        read -p "Max Tasks Per Child [${default_val}]: " user_input
+                        val=${user_input:-$default_val}
+                    else
+                        val="$default_val"
+                    fi
+                    ;;
                 *)
                     if [ "$IS_INTERACTIVE" = true ]; then
                         read -p "Setting '${var}' [${default_val}]: " user_input

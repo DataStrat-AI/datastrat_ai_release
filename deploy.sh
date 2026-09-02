@@ -348,6 +348,19 @@ fi
 sed -i.bak "s|^GRAFANA_ADMIN_USER=.*|GRAFANA_ADMIN_USER=${grafana_user}|g" .env
 sed -i.bak "s|^GRAFANA_ADMIN_PASSWORD=.*|GRAFANA_ADMIN_PASSWORD=${grafana_pass}|g" .env
 
+# --- Worker & Ingestion Performance ---
+echo ""
+echo "--- Worker & Ingestion Performance ---"
+echo "Configure parallel processing capacity based on your host RAM (e.g. 1 for <=4GB RAM, 2 for 8GB-16GB RAM, 4 for 32GB+ RAM):"
+read -p "Celery Worker Concurrency [2]: " celery_conc
+celery_conc=${celery_conc:-2}
+
+read -p "Max Tasks Per Child before RAM recycling [10]: " celery_max_tasks
+celery_max_tasks=${celery_max_tasks:-10}
+
+sed -i.bak "s|^CELERY_CONCURRENCY=.*|CELERY_CONCURRENCY=${celery_conc}|g" .env
+sed -i.bak "s|^CELERY_MAX_TASKS_PER_CHILD=.*|CELERY_MAX_TASKS_PER_CHILD=${celery_max_tasks}|g" .env
+
 # Cleanup sed backups
 rm -f .env.bak
 
