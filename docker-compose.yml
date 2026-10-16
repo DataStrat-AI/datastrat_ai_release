@@ -102,6 +102,8 @@ services:
       - CELERY_CONCURRENCY=${CELERY_CONCURRENCY:-2}
       - CELERY_MAX_TASKS_PER_CHILD=${CELERY_MAX_TASKS_PER_CHILD:-10}
     depends_on:
+      db_init:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
         required: false
