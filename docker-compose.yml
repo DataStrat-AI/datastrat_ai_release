@@ -297,7 +297,7 @@ services:
       - db_net
 
   minio:
-    image: minio/minio:RELEASE.2023-11-20T22-40-07Z
+    image: pgsty/minio:latest
     container_name: datastrat_minio
     profiles: [ "local-storage" ]
     ports:
@@ -318,7 +318,7 @@ services:
       - db_net
 
   minio_init:
-    image: minio/mc:RELEASE.2023-11-20T16-30-59Z
+    image: pgsty/mc:latest
     container_name: datastrat_minio_init
     profiles: [ "local-storage" ]
     depends_on:
