@@ -50,8 +50,8 @@ server {
         proxy_set_header Connection "upgrade";
     }
 
-    # Zitadel Auth
-    location ~* ^/auth/|^/ui/|^/debug/|^/openid/|^/oauth/|^/admin/|^/mgmt/|^/system/ {
+    # Zitadel Auth & OIDC endpoints (including /oidc/ and /.well-known/)
+    location ~* ^/(auth|ui|debug|openid|oauth|oidc|admin|mgmt|system|\.well-known)(/|$) {
         proxy_pass http://datastrat_zitadel;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

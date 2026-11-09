@@ -9,7 +9,7 @@ services:
     image: ghcr.io/datastrat-ai/datastrat_ai-api:${APP_VERSION:-latest}
     container_name: datastrat_api
     ports:
-      - "8000:8000"
+      - "${HOST_BIND_IP:-127.0.0.1}:8000:8000"
     environment:
       - DATABASE_URL=${DATABASE_URL:-}
       - DB_HOST=${DB_HOST:-postgres}
@@ -38,7 +38,7 @@ services:
       - API_BASE_URL=${API_BASE_URL:-http://api:8000}
       - APP_URL=${APP_URL:-http://localhost}
       - OIDC_CALLBACK_URL=${OIDC_CALLBACK_URL:-http://localhost/api/v1/auth/oidc/callback}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-me-in-production}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-}
       - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
       - JWT_EXPIRY_HOURS=${JWT_EXPIRY_HOURS:-24}
       - LLM_PROVIDER=${LLM_PROVIDER}
@@ -125,7 +125,7 @@ services:
       - NEXT_DISABLE_TURBOPACK=1
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
     ports:
-      - "3000:3000"
+      - "${HOST_BIND_IP:-127.0.0.1}:3000:3000"
     networks:
       - frontend_net
       - backend_net
@@ -238,7 +238,7 @@ services:
     container_name: datastrat_redis
     profiles: [ "local-storage" ]
     ports:
-      - "6379:6379"
+      - "${HOST_BIND_IP:-127.0.0.1}:6379:6379"
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
@@ -256,7 +256,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASS:-datastrat}
       POSTGRES_DB: ${DB_NAME:-datastrat}
     ports:
-      - "5432:5432"
+      - "${HOST_BIND_IP:-127.0.0.1}:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -289,8 +289,8 @@ services:
     container_name: datastrat_qdrant
     profiles: [ "local-storage" ]
     ports:
-      - "6333:6333"
-      - "6334:6334"
+      - "${HOST_BIND_IP:-127.0.0.1}:6333:6333"
+      - "${HOST_BIND_IP:-127.0.0.1}:6334:6334"
     volumes:
       - qdrant_data:/qdrant/storage
     networks:
@@ -301,8 +301,8 @@ services:
     container_name: datastrat_minio
     profiles: [ "local-storage" ]
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "${HOST_BIND_IP:-127.0.0.1}:9000:9000"
+      - "${HOST_BIND_IP:-127.0.0.1}:9001:9001"
     environment:
       MINIO_ROOT_USER: ${STORAGE_ACCESS_KEY:-admin}
       MINIO_ROOT_PASSWORD: ${STORAGE_SECRET_KEY:-minioadmin}
