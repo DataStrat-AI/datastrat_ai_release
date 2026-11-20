@@ -1010,8 +1010,9 @@
           <div class="callout-title">Firewall &amp; Port Exposure</div>
           <p>
             Application services (<code>api</code>, <code>ui</code>, <code>postgres</code>, <code>redis</code>, <code>qdrant</code>, <code>minio</code>)
-            bind to <code>127.0.0.1</code> by default via <code>HOST_BIND_IP</code>. Only <code>nginx</code> exposes
-            public ports <code>80</code> and <code>443</code> (plus <code>8080</code> for optional local fallback).
+            bind to <code>127.0.0.1</code> by default via <code>HOST_BIND_IP</code>. Configure your VM/cloud firewall to allow
+            inbound public traffic <strong>only</strong> on ports <code>80</code> and <code>443</code>, and block port <code>8080</code>
+            from external access (or bind it to <code>127.0.0.1</code> in production).
             Ensure outbound HTTPS (<code>443</code>) is permitted to <code>ghcr.io</code>, <code>github.com</code>, and your LLM provider endpoint.
           </p>
         </div>
@@ -1022,10 +1023,10 @@
         <h2>Production Deployment Guide</h2>
 
         <h3>Step 1: Authenticate to the Container Registry</h3>
-        <p>Log in to GitHub Container Registry using a PAT with <code>read:packages</code> permission:</p>
+        <p>Log in to GitHub Container Registry using a PAT with <code>read:packages</code> permission. Enter the PAT only at the hidden prompt so it is not recorded in shell history:</p>
         <div class="code-block">
           <div class="code-header"><span>bash</span><button class="copy-btn" type="button">Copy</button></div>
-          <pre><code>echo "YOUR_GITHUB_PAT" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin</code></pre>
+          <pre><code>read -rsp 'GitHub PAT: ' GHCR_PAT; printf '\n'; printf '%s' "$GHCR_PAT" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin; unset GHCR_PAT</code></pre>
         </div>
 
         <h3>Step 2: Download &amp; Extract the Release Package</h3>
@@ -1199,9 +1200,10 @@ curl -f https://app.datastrat.example.com/health</code></pre>
         <div class="callout warn">
           <div class="callout-title">First-Login Action Required</div>
           <p>
-            Zitadel initializes a bootstrap human administrator (<code>admin@datastrat.local</code>) using
-            <code>ZITADEL_ADMIN_PASSWORD</code> (defaulting to <code>Admin123!</code> if not overridden in <code>.env</code>).
-            Sign in at <code>https://auth.&lt;domain&gt;</code> immediately after deployment to rotate this password and configure MFA.
+            Zitadel initializes a bootstrap human administrator (<code>admin@datastrat.local</code>) using the
+            <code>ZITADEL_ADMIN_PASSWORD</code> configured in <code>.env</code>. Before starting the stack in production,
+            set a strong, unique <code>ZITADEL_ADMIN_PASSWORD</code> in <code>.env</code>, and sign in at
+            <code>https://auth.&lt;domain&gt;</code> immediately after deployment to verify the account and configure MFA.
           </p>
         </div>
 
@@ -1274,7 +1276,7 @@ curl -f https://app.datastrat.example.com/health</code></pre>
       <section id="security-support">
         <h2>Security &amp; Support Contact</h2>
         <ul>
-          <li><strong>Zero Cloud Telemetry:</strong> All third-party tracing tools (such as LangSmith) are strictly disabled in production builds. Prompts, evidence, and scores remain inside your VPC.</li>
+          <li><strong>Data Handling:</strong> All third-party tracing tools (such as LangSmith) are strictly disabled in production builds. Prompts, evidence, and scores remain inside your VPC when configured with a self-hosted provider such as Ollama; external cloud LLM providers receive inference requests under their respective enterprise data-handling policies.</li>
           <li><strong>Sovereign Initialization:</strong> Schema migrations and seeding run in ephemeral <code>db_init</code> and <code>zitadel_init</code> containers that exit upon completion.</li>
           <li><strong>Credential Hygiene:</strong> <code>deploy.sh</code> enforces <code>chmod 600 .env</code> and restricts internal database/cache ports to <code>127.0.0.1</code>.</li>
         </ul>
