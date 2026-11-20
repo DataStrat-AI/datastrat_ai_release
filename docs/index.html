@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <script>
+    try {
+      const saved = localStorage.getItem("ds-color-scheme");
+      if (saved === "light" || saved === "dark") {
+        document.querySelector('meta[name="color-scheme"]').content = saved;
+      }
+    } catch (_) {}
+  </script>
+  <title>DataStrat AI — Enterprise Product &amp; Production Deployment Documentation</title>
+  <meta name="description" content="Production deployment, architecture, identity, LLM, storage, and maintenance documentation for the DataStrat AI Enterprise DCAM Assessment Appliance.">
+  <style>
+    :root {
+      color-scheme: light dark;
+
+      /* Raw Palette */
+      --bg-light: #ffffff;
+      --bg-dark: #0b0f17;
+      --surface-light: #f8fafc;
+      --surface-dark: #111827;
+      --surface-elevated-light: #ffffff;
+      --surface-elevated-dark: #161e2e;
+      --border-light: #e2e8f0;
+      --border-dark: #1f2937;
+      --text-light: #0f172a;
+      --text-dark: #f1f5f9;
+      --muted-light: #475569;
+      --muted-dark: #94a3b8;
+      --brand-light: #1d4ed8;
+      --brand-dark: #60a5fa;
+      --brand-soft-light: #eff6ff;
+      --brand-soft-dark: #172554;
+      --accent-light: #0f766e;
+      --accent-dark: #2dd4bf;
+      --warn-bg-light: #fffbeb;
+      --warn-bg-dark: #271b07;
+      --warn-border-light: #f59e0b;
+      --warn-border-dark: #d97706;
+      --info-bg-light: #f0f9ff;
+      --info-bg-dark: #0c1f33;
+      --info-border-light: #0284c7;
+      --info-border-dark: #38bdf8;
+      --code-bg-light: #0f172a;
+      --code-bg-dark: #070a10;
+      --inline-code-bg-light: #f1f5f9;
+      --inline-code-bg-dark: #1e293b;
+
+      /* Fallback defaults (light) */
+      --bg: var(--bg-light);
+      --surface: var(--surface-light);
+      --surface-elevated: var(--surface-elevated-light);
+      --border: var(--border-light);
+      --text: var(--text-light);
+      --muted: var(--muted-light);
+      --brand: var(--brand-light);
+      --brand-soft: var(--brand-soft-light);
+      --accent: var(--accent-light);
+      --warn-bg: var(--warn-bg-light);
+      --warn-border: var(--warn-border-light);
+      --info-bg: var(--info-bg-light);
+      --info-border: var(--info-border-light);
+      --code-bg: var(--code-bg-light);
+      --inline-code-bg: var(--inline-code-bg-light);
+
+      --header-height: 4rem;
+      --sidebar-width: 17.5rem;
+      --radius: 0.625rem;
+      --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: var(--bg-dark);
+        --surface: var(--surface-dark);
+        --surface-elevated: var(--surface-elevated-dark);
+        --border: var(--border-dark);
+        --text: var(--text-dark);
+        --muted: var(--muted-dark);
+        --brand: var(--brand-dark);
+        --brand-soft: var(--brand-soft-dark);
+        --accent: var(--accent-dark);
+        --warn-bg: var(--warn-bg-dark);
+        --warn-border: var(--warn-border-dark);
+        --info-bg: var(--info-bg-dark);
+        --info-border: var(--info-border-dark);
+        --code-bg: var(--code-bg-dark);
+        --inline-code-bg: var(--inline-code-bg-dark);
+      }
+    }
+
+    @supports (color: light-dark(white, black)) {
+      :root {
+        --bg: light-dark(var(--bg-light), var(--bg-dark));
+        --surface: light-dark(var(--surface-light), var(--surface-dark));
+        --surface-elevated: light-dark(var(--surface-elevated-light), var(--surface-elevated-dark));
+        --border: light-dark(var(--border-light), var(--border-dark));
+        --text: light-dark(var(--text-light), var(--text-dark));
+        --muted: light-dark(var(--muted-light), var(--muted-dark));
+        --brand: light-dark(var(--brand-light), var(--brand-dark));
+        --brand-soft: light-dark(var(--brand-soft-light), var(--brand-soft-dark));
+        --accent: light-dark(var(--accent-light), var(--accent-dark));
+        --warn-bg: light-dark(var(--warn-bg-light), var(--warn-bg-dark));
+        --warn-border: light-dark(var(--warn-border-light), var(--warn-border-dark));
+        --info-bg: light-dark(var(--info-bg-light), var(--info-bg-dark));
+        --info-border: light-dark(var(--info-border-light), var(--info-border-dark));
+        --code-bg: light-dark(var(--code-bg-light), var(--code-bg-dark));
+        --inline-code-bg: light-dark(var(--inline-code-bg-light), var(--inline-code-bg-dark));
+      }
+    }
+
+    :root:has(> head > meta[name="color-scheme"][content="dark"]) {
+      color-scheme: dark;
+    }
+
+    :root:has(> head > meta[name="color-scheme"][content="light"]) {
+      color-scheme: light;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: calc(var(--header-height) + 1.5rem);
+      accent-color: var(--brand);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+    }
+
+    body {
+      margin: 0;
+      font-family: var(--font-sans);
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a {
+      color: var(--brand);
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    a:focus-visible, button:focus-visible, input:focus-visible, [tabindex="0"]:focus-visible {
+      outline: 2px solid var(--brand);
+      outline-offset: 2px;
+    }
+
+    /* Header */
+    .site-header {
+      position: sticky;
+      inset-block-start: 0;
+      z-index: 40;
+      block-size: var(--header-height);
+      background: color-mix(in srgb, var(--bg) 88%, transparent);
+      backdrop-filter: blur(12px);
+      border-block-end: 1px solid var(--border);
+    }
+
+    .header-inner {
+      max-inline-size: 90rem;
+      margin-inline: auto;
+      block-size: 100%;
+      padding-inline: 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-weight: 700;
+      font-size: 1.05rem;
+      color: var(--text);
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .brand:hover { text-decoration: none; }
+
+    .brand-badge {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      padding: 0.18rem 0.55rem;
+      border-radius: 999px;
+      background: var(--brand-soft);
+      color: var(--brand);
+      border: 1px solid color-mix(in srgb, var(--brand) 25%, transparent);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+    }
+
+    .icon-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.45rem 0.75rem;
+      border-radius: 0.5rem;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .icon-btn:hover {
+      border-color: var(--brand);
+    }
+
+    .mobile-nav-btn {
+      display: inline-flex;
+    }
+    @media (min-width: 64rem) {
+      .mobile-nav-btn { display: none; }
+    }
+
+    /* Layout */
+    .docs-shell {
+      max-inline-size: 90rem;
+      margin-inline: auto;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2rem;
+      padding-inline: 1.25rem;
+    }
+
+    @media (min-width: 64rem) {
+      .docs-shell {
+        grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+        gap: 3rem;
+        padding-inline: 2rem;
+      }
+    }
+
+    /* Sidebar */
+    .sidebar {
+      display: none;
+    }
+
+    @media (min-width: 64rem) {
+      .sidebar {
+        display: block;
+        position: sticky;
+        inset-block-start: calc(var(--header-height) + 1.5rem);
+        max-block-size: calc(100dvh - var(--header-height) - 3rem);
+        overflow-y: auto;
+        padding-inline-end: 0.75rem;
+      }
+    }
+
+    .nav-group {
+      margin-block-end: 1.5rem;
+    }
+
+    .nav-group-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin: 0 0 0.5rem 0.75rem;
+    }
+
+    .nav-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+    }
+
+    .nav-link {
+      display: block;
+      padding: 0.42rem 0.75rem;
+      border-radius: 0.45rem;
+      font-size: 0.88rem;
+      color: var(--muted);
+      border-inline-start: 2px solid transparent;
+      transition: background-color 0.15s ease, color 0.15s ease;
+    }
+
+    .nav-link:hover {
+      color: var(--text);
+      background: var(--surface);
+      text-decoration: none;
+    }
+
+    .nav-link[aria-current="location"] {
+      color: var(--brand);
+      background: var(--brand-soft);
+      border-inline-start-color: var(--brand);
+      font-weight: 600;
+    }
+
+    /* Mobile Popover Drawer */
+    .mobile-drawer {
+      margin: 0;
+      inset: 0;
+      inset-inline-end: auto;
+      inline-size: min(84dvw, 20rem);
+      block-size: 100dvh;
+      max-block-size: 100dvh;
+      padding: 1.25rem;
+      border: 0;
+      border-inline-end: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      overflow-y: auto;
+    }
+    .mobile-drawer::backdrop {
+      background: rgb(0 0 0 / 0.5);
+    }
+    .drawer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-block-end: 1.25rem;
+      padding-block-end: 0.75rem;
+      border-block-end: 1px solid var(--border);
+    }
+
+    /* Main Content */
+    .main-content {
+      padding-block: 2rem 5rem;
+      max-inline-size: 56rem;
+      min-inline-size: 0;
+    }
+
+    .hero {
+      padding-block-end: 2rem;
+      margin-block-end: 2.5rem;
+      border-block-end: 1px solid var(--border);
+    }
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin-block-end: 0.75rem;
+    }
+
+    h1 {
+      font-size: clamp(1.85rem, 3.2vw, 2.5rem);
+      line-height: 1.18;
+      letter-spacing: -0.025em;
+      margin: 0 0 0.9rem;
+    }
+
+    .hero-lead {
+      font-size: 1.08rem;
+      color: var(--muted);
+      margin: 0 0 1.5rem;
+      max-inline-size: 46rem;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .meta-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.8rem;
+      padding: 0.3rem 0.7rem;
+      border-radius: 999px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    section {
+      margin-block-end: 3.5rem;
+    }
+
+    h2 {
+      font-size: 1.5rem;
+      letter-spacing: -0.02em;
+      margin: 0 0 1rem;
+      padding-block-end: 0.5rem;
+      border-block-end: 1px solid var(--border);
+    }
+
+    h3 {
+      font-size: 1.15rem;
+      margin: 1.75rem 0 0.65rem;
+    }
+
+    p {
+      margin: 0 0 1rem;
+    }
+
+    ul, ol {
+      margin: 0 0 1.1rem;
+      padding-inline-start: 1.35rem;
+    }
+    li {
+      margin-block-end: 0.4rem;
+    }
+
+    /* Inline code */
+    :not(pre) > code {
+      font-family: var(--font-mono);
+      font-size: 0.86em;
+      padding: 0.14rem 0.38rem;
+      border-radius: 0.3rem;
+      background: var(--inline-code-bg);
+      border: 1px solid var(--border);
+    }
+
+    /* Code blocks */
+    .code-block {
+      position: relative;
+      margin-block: 1rem 1.4rem;
+      border-radius: var(--radius);
+      background: var(--code-bg);
+      color: #e2e8f0;
+      border: 1px solid #1e293b;
+      overflow: hidden;
+      color-scheme: dark;
+    }
+
+    .code-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.45rem 0.9rem;
+      background: #0f172a;
+      border-block-end: 1px solid #1e293b;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: #94a3b8;
+    }
+
+    .copy-btn {
+      background: #1e293b;
+      color: #e2e8f0;
+      border: 1px solid #334155;
+      border-radius: 0.35rem;
+      padding: 0.2rem 0.55rem;
+      font-size: 0.72rem;
+      font-family: var(--font-sans);
+      cursor: pointer;
+    }
+    .copy-btn:hover {
+      background: #334155;
+    }
+
+    .code-block pre {
+      margin: 0;
+      padding: 1rem;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 0.84rem;
+      line-height: 1.55;
+    }
+
+    /* Callouts */
+    .callout {
+      padding: 1rem 1.15rem;
+      border-radius: var(--radius);
+      border-inline-start: 4px solid var(--info-border);
+      background: var(--info-bg);
+      margin-block: 1.25rem;
+    }
+    .callout.warn {
+      border-inline-start-color: var(--warn-border);
+      background: var(--warn-bg);
+    }
+    .callout-title {
+      font-weight: 700;
+      font-size: 0.88rem;
+      margin-block-end: 0.3rem;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+    .callout p:last-child { margin-block-end: 0; }
+
+    /* Cards & Grids */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+      gap: 1rem;
+      margin-block: 1.25rem;
+    }
+
+    .card {
+      padding: 1.15rem;
+      border-radius: var(--radius);
+      background: var(--surface);
+      border: 1px solid var(--border);
+    }
+
+    .card-title {
+      font-weight: 700;
+      font-size: 0.96rem;
+      margin: 0 0 0.4rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .card p {
+      font-size: 0.88rem;
+      color: var(--muted);
+      margin: 0;
+    }
+
+    .tag {
+      font-size: 0.7rem;
+      font-family: var(--font-mono);
+      padding: 0.12rem 0.45rem;
+      border-radius: 0.3rem;
+      background: var(--brand-soft);
+      color: var(--brand);
+    }
+
+    /* Responsive Tables */
+    .table-wrapper {
+      overflow: auto;
+      max-inline-size: 100%;
+      margin-block: 1.1rem 1.5rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      container-type: inline-size;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 0.88rem;
+      text-align: start;
+    }
+
+    caption {
+      text-align: start;
+      padding: 0.75rem 1rem;
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: var(--muted);
+      background: var(--surface);
+      border-block-end: 1px solid var(--border);
+    }
+
+    thead th {
+      position: sticky;
+      inset-block-start: 0;
+      background: var(--surface);
+      font-weight: 600;
+      padding: 0.7rem 0.9rem;
+      border-block-end: 1px solid var(--border);
+      white-space: nowrap;
+      z-index: 1;
+    }
+
+    tbody td, tbody th {
+      padding: 0.7rem 0.9rem;
+      border-block-end: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    tbody tr:last-child td, tbody tr:last-child th {
+      border-block-end: 0;
+    }
+
+    tbody th {
+      font-weight: 600;
+      text-align: start;
+    }
+
+    /* Architecture Diagram Container */
+    .diagram-box {
+      padding: 1.25rem;
+      border-radius: var(--radius);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      margin-block: 1.25rem 1.5rem;
+      overflow-x: auto;
+    }
+    .diagram-box svg {
+      display: block;
+      max-inline-size: 100%;
+      height: auto;
+      margin-inline: auto;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      border-block-end: 1px solid var(--border);
+      margin-block-start: 1.25rem;
+    }
+    .tab-btn {
+      padding: 0.55rem 0.95rem;
+      border: 0;
+      border-block-end: 2px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .tab-btn[aria-selected="true"] {
+      color: var(--brand);
+      border-block-end-color: var(--brand);
+    }
+    .tab-panel[hidden] {
+      display: none;
+    }
+    .tab-panel {
+      padding-block-start: 1rem;
+    }
+
+    /* Footer */
+    .site-footer {
+      border-block-start: 1px solid var(--border);
+      padding-block: 2rem;
+      margin-block-start: 3rem;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 1rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <div style="display:flex;align-items:center;gap:0.75rem;">
+        <button class="icon-btn mobile-nav-btn" type="button" popovertarget="mobile-nav" aria-label="Open navigation menu">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+          <span>Menu</span>
+        </button>
+        <a class="brand" href="#overview">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="2" y="2" width="20" height="20" rx="5" fill="currentColor" opacity="0.12"/>
+            <path d="M7 12.5L10.2 15.5L17 8.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>DataStrat AI</span>
+          <span class="brand-badge">Production Docs</span>
+        </a>
+      </div>
+
+      <div class="header-actions">
+        <a class="icon-btn" href="https://github.com/DataStrat-AI/datastrat_ai_release/releases" target="_blank" rel="noopener noreferrer">
+          <span>Releases</span>
+        </a>
+        <button class="icon-btn" id="theme-toggle" type="button" aria-label="Toggle color theme">
+          <span id="theme-label">Theme</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile Popover Navigation -->
+  <div id="mobile-nav" class="mobile-drawer" popover="auto">
+    <div class="drawer-header">
+      <strong>Documentation</strong>
+      <button class="icon-btn" type="button" popovertarget="mobile-nav" popovertargetaction="hide">Close</button>
+    </div>
+    <nav aria-label="Mobile documentation navigation">
+      <div class="nav-group">
+        <p class="nav-group-title">Platform</p>
+        <ul class="nav-list">
+          <li><a class="nav-link" href="#overview">Overview &amp; Capabilities</a></li>
+          <li><a class="nav-link" href="#architecture">System Architecture</a></li>
+          <li><a class="nav-link" href="#prerequisites">Prerequisites &amp; Sizing</a></li>
+        </ul>
+      </div>
+      <div class="nav-group">
+        <p class="nav-group-title">Production Setup</p>
+        <ul class="nav-list">
+          <li><a class="nav-link" href="#deployment">Deployment Guide</a></li>
+          <li><a class="nav-link" href="#env-reference">Environment Reference</a></li>
+          <li><a class="nav-link" href="#identity">Identity &amp; Zitadel OIDC</a></li>
+          <li><a class="nav-link" href="#llm-storage">LLM &amp; Storage</a></li>
+        </ul>
+      </div>
+      <div class="nav-group">
+        <p class="nav-group-title">Operations</p>
+        <ul class="nav-list">
+          <li><a class="nav-link" href="#upgrading">Upgrading &amp; Backups</a></li>
+          <li><a class="nav-link" href="#security-support">Security &amp; Support</a></li>
+        </ul>
+      </div>
+    </nav>
+  </div>
+
+  <div class="docs-shell">
+    <!-- Desktop Sidebar -->
+    <aside class="sidebar" aria-label="Documentation navigation">
+      <nav>
+        <div class="nav-group">
+          <p class="nav-group-title">Platform</p>
+          <ul class="nav-list">
+            <li><a class="nav-link" href="#overview" aria-current="location">Overview &amp; Capabilities</a></li>
+            <li><a class="nav-link" href="#architecture">System Architecture</a></li>
+            <li><a class="nav-link" href="#prerequisites">Prerequisites &amp; Sizing</a></li>
+          </ul>
+        </div>
+        <div class="nav-group">
+          <p class="nav-group-title">Production Setup</p>
+          <ul class="nav-list">
+            <li><a class="nav-link" href="#deployment">Deployment Guide</a></li>
+            <li><a class="nav-link" href="#env-reference">Environment Reference</a></li>
+            <li><a class="nav-link" href="#identity">Identity &amp; Zitadel OIDC</a></li>
+            <li><a class="nav-link" href="#llm-storage">LLM &amp; Storage</a></li>
+          </ul>
+        </div>
+        <div class="nav-group">
+          <p class="nav-group-title">Operations</p>
+          <ul class="nav-list">
+            <li><a class="nav-link" href="#upgrading">Upgrading &amp; Backups</a></li>
+            <li><a class="nav-link" href="#security-support">Security &amp; Support</a></li>
+          </ul>
+        </div>
+      </nav>
+    </aside>
+
+    <!-- Main Documentation Content -->
+    <main class="main-content">
+      <div class="hero">
+        <div class="hero-eyebrow">Enterprise Appliance Deployment Guide</div>
+        <h1>DataStrat AI Production Documentation</h1>
+        <p class="hero-lead">
+          Deploy, configure, and operate DataStrat AI inside your sovereign enterprise VPC.
+          This guide is written for client IT, Security, and DevOps teams running production workloads.
+        </p>
+        <div class="pill-row">
+          <span class="meta-pill">Docker Compose v2</span>
+          <span class="meta-pill">Dual-Subdomain OIDC (Zitadel)</span>
+          <span class="meta-pill">Hybrid Local or Managed Cloud Storage</span>
+          <span class="meta-pill">Zero Cloud Telemetry</span>
+        </div>
+      </div>
+
+      <!-- 1. Overview -->
+      <section id="overview">
+        <h2>Product Overview &amp; Capabilities</h2>
+        <p>
+          <strong>DataStrat AI</strong> is a self-contained enterprise AI appliance built to automate and streamline
+          <strong>DCAM (Data Management Capability Assessment Model)</strong> evaluations. Combining
+          Retrieval-Augmented Generation (RAG) with LangGraph agentic reasoning, the platform conducts
+          structured interviews, evaluates governance artifacts, and recommends maturity scores within your
+          private infrastructure.
+        </p>
+
+        <div class="card-grid">
+          <div class="card">
+            <div class="card-title">Agentic DCAM Interviews <span class="tag">LangGraph</span></div>
+            <p>Conversational assessment agent that adapts follow-up questions to stakeholder responses and validates evidence against DCAM standards.</p>
+          </div>
+          <div class="card">
+            <div class="card-title">Evidence Saturation <span class="tag">RAG + Qdrant</span></div>
+            <p>Real-time ingestion and semantic indexing of uploaded governance documents with visual completeness tracking.</p>
+          </div>
+          <div class="card">
+            <div class="card-title">Role-Based Governance <span class="tag">OIDC RBAC</span></div>
+            <p>Built-in Auditor and Compliance Officer separation so AI maturity suggestions are reviewed and finalized by human officers.</p>
+          </div>
+          <div class="card">
+            <div class="card-title">Hybrid VPC Ready <span class="tag">Stateless</span></div>
+            <p>Run completely self-contained with bundled containers or connect directly to managed RDS, Redis, Qdrant, and S3 services.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. Architecture -->
+      <section id="architecture">
+        <h2>System Architecture</h2>
+        <p>
+          DataStrat AI uses a decoupled microservice topology segmented across three isolated Docker bridge networks
+          (<code>frontend_net</code>, <code>backend_net</code>, and <code>db_net</code>). All external traffic enters
+          through a single Nginx reverse proxy using a <strong>dual-subdomain routing model</strong> so authentication
+          and application traffic traverse standard HTTPS/HTTP ports (<code>443</code> / <code>80</code>).
+        </p>
+
+        <div class="diagram-box" role="img" aria-label="DataStrat AI Production Architecture Diagram">
+          <svg viewBox="0 0 820 430" width="820" height="430" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
+            <!-- External Clients -->
+            <rect x="20" y="140" width="130" height="120" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.35" stroke-width="1.5"/>
+            <text x="85" y="172" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">Enterprise Users</text>
+            <text x="85" y="195" text-anchor="middle" font-size="11" fill="currentColor" opacity="0.75">app.&lt;domain&gt;</text>
+            <text x="85" y="213" text-anchor="middle" font-size="11" fill="currentColor" opacity="0.75">auth.&lt;domain&gt;</text>
+            <text x="85" y="236" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.6">HTTPS 443 / HTTP 80</text>
+
+            <!-- Arrow to Nginx -->
+            <line x1="150" y1="200" x2="195" y2="200" stroke="currentColor" stroke-width="1.8"/>
+            <polygon points="195,195 205,200 195,205" fill="currentColor"/>
+
+            <!-- Nginx -->
+            <rect x="205" y="120" width="135" height="160" rx="10" fill="currentColor" fill-opacity="0.06" stroke="currentColor" stroke-width="1.6"/>
+            <text x="272" y="148" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">Nginx Proxy</text>
+            <text x="272" y="166" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.7">datastrat_nginx</text>
+            <text x="272" y="192" text-anchor="middle" font-size="10.5" fill="currentColor">/ &rarr; UI :3000</text>
+            <text x="272" y="210" text-anchor="middle" font-size="10.5" fill="currentColor">/api/ &rarr; API :8000</text>
+            <text x="272" y="228" text-anchor="middle" font-size="10.5" fill="currentColor">/grafana/ &rarr; :3000</text>
+            <text x="272" y="246" text-anchor="middle" font-size="10.5" fill="currentColor">auth.* &rarr; Zitadel</text>
+            <text x="272" y="266" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.65">frontend_net + backend_net</text>
+
+            <!-- App & Auth Tier -->
+            <line x1="340" y1="150" x2="390" y2="75" stroke="currentColor" stroke-width="1.4"/>
+            <line x1="340" y1="190" x2="390" y2="155" stroke="currentColor" stroke-width="1.4"/>
+            <line x1="340" y1="220" x2="390" y2="245" stroke="currentColor" stroke-width="1.4"/>
+            <line x1="340" y1="255" x2="390" y2="335" stroke="currentColor" stroke-width="1.4"/>
+
+            <!-- Next.js UI -->
+            <rect x="390" y="38" width="175" height="68" rx="8" fill="currentColor" fill-opacity="0.04" stroke="currentColor" stroke-opacity="0.5"/>
+            <text x="477" y="62" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">Next.js Web UI</text>
+            <text x="477" y="80" text-anchor="middle" font-size="10.5" fill="currentColor" opacity="0.75">datastrat_ui (:3000)</text>
+            <text x="477" y="96" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.6">frontend_net, backend_net</text>
+
+            <!-- FastAPI -->
+            <rect x="390" y="122" width="175" height="72" rx="8" fill="currentColor" fill-opacity="0.04" stroke="currentColor" stroke-opacity="0.5"/>
+            <text x="477" y="146" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">FastAPI Gateway</text>
+            <text x="477" y="164" text-anchor="middle" font-size="10.5" fill="currentColor" opacity="0.75">datastrat_api (:8000)</text>
+            <text x="477" y="180" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.6">backend_net, db_net</text>
+
+            <!-- Zitadel -->
+            <rect x="390" y="210" width="175" height="72" rx="8" fill="currentColor" fill-opacity="0.04" stroke="currentColor" stroke-opacity="0.5"/>
+            <text x="477" y="234" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">Zitadel OIDC IdP</text>
+            <text x="477" y="252" text-anchor="middle" font-size="10.5" fill="currentColor" opacity="0.75">datastrat_zitadel (:8080)</text>
+            <text x="477" y="268" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.6">+ zitadel_db (Postgres 15)</text>
+
+            <!-- Observability -->
+            <rect x="390" y="298" width="175" height="72" rx="8" fill="currentColor" fill-opacity="0.04" stroke="currentColor" stroke-opacity="0.5"/>
+            <text x="477" y="322" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">Observability Stack</text>
+            <text x="477" y="340" text-anchor="middle" font-size="10.5" fill="currentColor" opacity="0.75">Grafana + Loki + Promtail</text>
+            <text x="477" y="356" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.6">backend_net (/grafana/)</text>
+
+            <!-- Worker + Storage Tier -->
+            <line x1="565" y1="158" x2="615" y2="95" stroke="currentColor" stroke-width="1.4"/>
+            <line x1="565" y1="168" x2="615" y2="235" stroke="currentColor" stroke-width="1.4"/>
+
+            <!-- Celery Worker -->
+            <rect x="615" y="45" width="185" height="92" rx="8" fill="currentColor" fill-opacity="0.04" stroke="currentColor" stroke-opacity="0.5"/>
+            <text x="707" y="70" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">RAG Worker (Celery)</text>
+            <text x="707" y="88" text-anchor="middle" font-size="10.5" fill="currentColor" opacity="0.75">datastrat_worker</text>
+            <text x="707" y="106" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.65">Document ingestion &amp; vectors</text>
+            <text x="707" y="122" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.6">db_net &rarr; LLM Provider API</text>
+
+            <!-- Data Layer -->
+            <rect x="615" y="165" width="185" height="195" rx="8" fill="currentColor" fill-opacity="0.06" stroke="currentColor" stroke-width="1.5" stroke-dasharray="5 3"/>
+            <text x="707" y="190" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">Hybrid Data Layer</text>
+            <text x="707" y="208" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.7">(local-storage or Managed VPC)</text>
+            <text x="707" y="236" text-anchor="middle" font-size="11" fill="currentColor">PostgreSQL 15 (:5432)</text>
+            <text x="707" y="262" text-anchor="middle" font-size="11" fill="currentColor">Redis 7 (:6379)</text>
+            <text x="707" y="288" text-anchor="middle" font-size="11" fill="currentColor">Qdrant v1.8.0 (:6333)</text>
+            <text x="707" y="314" text-anchor="middle" font-size="11" fill="currentColor">MinIO / S3 (:9000 / :443)</text>
+            <text x="707" y="342" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.6">Initialized by db_init / minio_init</text>
+          </svg>
+        </div>
+
+        <div class="table-wrapper" tabindex="0" role="region" aria-labelledby="services-caption">
+          <table>
+            <caption id="services-caption">Production Container Services</caption>
+            <thead>
+              <tr>
+                <th>Service</th>
+                <th>Container Name</th>
+                <th>Role &amp; Responsibilities</th>
+                <th>Networks</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th><code>nginx</code></th>
+                <td><code>datastrat_nginx</code></td>
+                <td>Reverse proxy, TLS termination (optional), dual-subdomain routing, 60 MB upload limit, 300s proxy timeout.</td>
+                <td><code>frontend_net</code>, <code>backend_net</code></td>
+              </tr>
+              <tr>
+                <th><code>ui</code></th>
+                <td><code>datastrat_ui</code></td>
+                <td>Next.js React dashboard served on internal port <code>3000</code> via <code>npm run start</code>.</td>
+                <td><code>frontend_net</code>, <code>backend_net</code></td>
+              </tr>
+              <tr>
+                <th><code>api</code></th>
+                <td><code>datastrat_api</code></td>
+                <td>Stateless FastAPI gateway &amp; LangGraph orchestration on port <code>8000</code>.</td>
+                <td><code>backend_net</code>, <code>db_net</code></td>
+              </tr>
+              <tr>
+                <th><code>worker</code></th>
+                <td><code>datastrat_worker</code></td>
+                <td>Python Celery worker for asynchronous document ingestion, chunking, and vectorization.</td>
+                <td><code>db_net</code></td>
+              </tr>
+              <tr>
+                <th><code>zitadel</code></th>
+                <td><code>datastrat_zitadel</code></td>
+                <td>OIDC / SAML Identity Provider (<code>ghcr.io/zitadel/zitadel:v2.54.3</code>) backed by dedicated <code>zitadel_db</code>.</td>
+                <td><code>backend_net</code>, <code>db_net</code></td>
+              </tr>
+              <tr>
+                <th><code>db_init</code> / <code>zitadel_init</code></th>
+                <td><code>datastrat_*_init</code></td>
+                <td>Ephemeral initialization containers for schema migrations and OIDC client provisioning.</td>
+                <td><code>db_net</code> / <code>backend_net</code></td>
+              </tr>
+              <tr>
+                <th><code>loki</code> / <code>promtail</code> / <code>grafana</code></th>
+                <td><code>datastrat_grafana</code></td>
+                <td>Centralized container log aggregation and dashboard exposed at <code>/grafana/</code>.</td>
+                <td><code>backend_net</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 3. Prerequisites & Sizing -->
+      <section id="prerequisites">
+        <h2>Prerequisites &amp; Hardware/VM Requirements</h2>
+
+        <h3>Host &amp; Software Requirements</h3>
+        <ul>
+          <li><strong>Operating System:</strong> 64-bit Linux VM (Ubuntu 22.04/24.04 LTS, Debian 12, or RHEL 9+).</li>
+          <li><strong>Container Runtime:</strong> Docker Engine 24+ and Docker Compose v2 (<code>docker compose</code> plugin).</li>
+          <li><strong>Host Utilities:</strong> <code>openssl</code>, <code>unzip</code>, <code>curl</code> or <code>wget</code>, and <code>rsync</code> (recommended for seamless upgrades).</li>
+          <li><strong>Container Registry Access:</strong> GitHub Personal Access Token (PAT) with <code>read:packages</code> scope to pull images from <code>ghcr.io</code>.</li>
+        </ul>
+
+        <h3>VM Sizing &amp; Worker Concurrency</h3>
+        <p>
+          Document ingestion is memory-intensive. Configure <code>CELERY_CONCURRENCY</code> and
+          <code>CELERY_MAX_TASKS_PER_CHILD</code> during setup based on available host RAM:
+        </p>
+
+        <div class="table-wrapper" tabindex="0" role="region" aria-labelledby="sizing-caption">
+          <table>
+            <caption id="sizing-caption">Recommended VM Sizing Tiers</caption>
+            <thead>
+              <tr>
+                <th>Deployment Tier</th>
+                <th>vCPU</th>
+                <th>RAM</th>
+                <th>Disk (SSD)</th>
+                <th>Recommended Celery Settings</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th>Standard Production</th>
+                <td>4&ndash;8 vCPU</td>
+                <td>8&ndash;16 GB</td>
+                <td>50&ndash;100 GB</td>
+                <td><code>CELERY_CONCURRENCY=2</code>, <code>CELERY_MAX_TASKS_PER_CHILD=10</code></td>
+              </tr>
+              <tr>
+                <th>High-Throughput Production</th>
+                <td>8+ vCPU</td>
+                <td>32+ GB</td>
+                <td>100+ GB</td>
+                <td><code>CELERY_CONCURRENCY=4</code> (or higher), <code>CELERY_MAX_TASKS_PER_CHILD=10</code></td>
+              </tr>
+              <tr>
+                <th>Constrained Evaluation VM</th>
+                <td>2&ndash;4 vCPU</td>
+                <td>&le; 4 GB</td>
+                <td>30 GB</td>
+                <td><code>CELERY_CONCURRENCY=1</code>, <code>CELERY_MAX_TASKS_PER_CHILD=1</code> (prevents OOMs)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>DNS &amp; Firewall Matrix</h3>
+        <p>Before running the deployment wizard, create two DNS <code>A</code> records pointing to your VM or Load Balancer IP:</p>
+        <ul>
+          <li><strong>Application Domain:</strong> e.g., <code>app.datastrat.example.com</code> (serves UI, API, and <code>/grafana/</code>).</li>
+          <li><strong>Authentication Domain:</strong> e.g., <code>auth.datastrat.example.com</code> (serves Zitadel OIDC endpoints).</li>
+        </ul>
+
+        <div class="callout">
+          <div class="callout-title">Firewall &amp; Port Exposure</div>
+          <p>
+            Application services (<code>api</code>, <code>ui</code>, <code>postgres</code>, <code>redis</code>, <code>qdrant</code>, <code>minio</code>)
+            bind to <code>127.0.0.1</code> by default via <code>HOST_BIND_IP</code>. Only <code>nginx</code> exposes
+            public ports <code>80</code> and <code>443</code> (plus <code>8080</code> for optional local fallback).
+            Ensure outbound HTTPS (<code>443</code>) is permitted to <code>ghcr.io</code>, <code>github.com</code>, and your LLM provider endpoint.
+          </p>
+        </div>
+      </section>
+
+      <!-- 4. Production Deployment -->
+      <section id="deployment">
+        <h2>Production Deployment Guide</h2>
+
+        <h3>Step 1: Authenticate to the Container Registry</h3>
+        <p>Log in to GitHub Container Registry using a PAT with <code>read:packages</code> permission:</p>
+        <div class="code-block">
+          <div class="code-header"><span>bash</span><button class="copy-btn" type="button">Copy</button></div>
+          <pre><code>echo "YOUR_GITHUB_PAT" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin</code></pre>
+        </div>
+
+        <h3>Step 2: Download &amp; Extract the Release Package</h3>
+        <p>Fetch the official enterprise deployment archive from <code>DataStrat-AI/datastrat_ai_release</code>:</p>
+        <div class="code-block">
+          <div class="code-header"><span>bash</span><button class="copy-btn" type="button">Copy</button></div>
+          <pre><code>wget https://github.com/DataStrat-AI/datastrat_ai_release/releases/latest/download/datastrat-enterprise-deployment.zip
+sudo apt-get update && sudo apt-get install -y unzip
+unzip datastrat-enterprise-deployment.zip -d datastrat-deploy
+cd datastrat-deploy</code></pre>
+        </div>
+
+        <h3>Step 3: Run the Interactive Deployment Wizard (<code>./deploy.sh</code>)</h3>
+        <p>
+          The <code>deploy.sh</code> script initializes <code>.env</code> from <code>.env.example</code>, generates
+          cryptographic secrets, configures Nginx SSL/headers, and locks permissions with <code>chmod 600 .env</code>.
+        </p>
+        <div class="code-block">
+          <div class="code-header"><span>bash</span><button class="copy-btn" type="button">Copy</button></div>
+          <pre><code>chmod +x deploy.sh update.sh
+./deploy.sh</code></pre>
+        </div>
+
+        <p>During the wizard, you will select:</p>
+        <ol>
+          <li><strong>Infrastructure Mode:</strong> Built-in local storage containers (<code>COMPOSE_PROFILES=local-storage</code>) or External Managed VPC services (RDS, ElastiCache, Qdrant Cloud, S3).</li>
+          <li><strong>Domains:</strong> Your <code>app_domain</code> and <code>auth_domain</code>.</li>
+          <li>
+            <strong>SSL / HTTPS Mode:</strong>
+            <ul>
+              <li><em>Option 1 &mdash; External Load Balancer (Recommended for Cloud):</em> Cloudflare, AWS ALB, or Azure Application Gateway terminates TLS. Nginx maps <code>$pref_proto</code> to <code>https</code> and sets <code>AUTH_TLS_MODE=external</code>.</li>
+              <li><em>Option 2 &mdash; Local Machine SSL (Nginx):</em> Nginx terminates TLS on port <code>443</code> using either a generated self-signed cert in <code>./certs/</code> or your enterprise <code>.crt</code> and <code>.key</code> paths.</li>
+              <li><em>Option 3 &mdash; Plain HTTP:</em> Port <code>80</code> only (not recommended for production).</li>
+            </ul>
+          </li>
+          <li><strong>LLM Provider &amp; Model:</strong> OpenAI, Anthropic, Azure OpenAI, or OpenRouter (plus Ollama via <code>.env</code>).</li>
+          <li><strong>Secrets &amp; Sizing:</strong> Auto-generates <code>ZITADEL_MASTERKEY</code>, <code>JWT_SECRET_KEY</code>, <code>ZITADEL_DB_PASSWORD</code>, MinIO credentials, Grafana admin credentials, and Celery worker tuning.</li>
+        </ol>
+
+        <h3>Step 4: Start the Production Stack</h3>
+        <div class="tabs" role="tablist" aria-label="Deployment Storage Modes">
+          <button class="tab-btn" role="tab" aria-selected="true" aria-controls="panel-prod-managed" id="tab-prod-managed" type="button">External Managed Storage</button>
+          <button class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-prod-local" id="tab-prod-local" type="button">Bundled Local Storage</button>
+        </div>
+
+        <div class="tab-panel" role="tabpanel" id="panel-prod-managed" aria-labelledby="tab-prod-managed">
+          <p>When using external managed PostgreSQL, Redis, Qdrant, and S3 (<code>COMPOSE_PROFILES=</code> empty in <code>.env</code>):</p>
+          <div class="code-block">
+            <div class="code-header"><span>bash</span><button class="copy-btn" type="button">Copy</button></div>
+            <pre><code>docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d</code></pre>
+          </div>
+        </div>
+
+        <div class="tab-panel" role="tabpanel" id="panel-prod-local" aria-labelledby="tab-prod-local" hidden>
+          <p>When using the bundled Postgres, Redis, Qdrant, and MinIO containers (<code>COMPOSE_PROFILES=local-storage</code> in <code>.env</code>):</p>
+          <div class="code-block">
+            <div class="code-header"><span>bash</span><button class="copy-btn" type="button">Copy</button></div>
+            <pre><code>docker compose --profile local-storage -f docker-compose.yml -f docker-compose.prod.yml up -d</code></pre>
+          </div>
+        </div>
+
+        <h3>Step 5: Verify Deployment Health</h3>
+        <div class="code-block">
+          <div class="code-header"><span>bash</span><button class="copy-btn" type="button">Copy</button></div>
+          <pre><code># Confirm all services are healthy/running (init containers should show Exited (0))
+docker compose ps
+
+# Verify Nginx health endpoint
+curl -f https://app.datastrat.example.com/health</code></pre>
+        </div>
+      </section>
+
+      <!-- 5. Environment Reference -->
+      <section id="env-reference">
+        <h2>Environment Configuration Reference</h2>
+        <p>Key variables managed in <code>.env</code> (derived from <code>.env.example</code>):</p>
+
+        <div class="table-wrapper" tabindex="0" role="region" aria-labelledby="env-caption">
+          <table>
+            <caption id="env-caption">Production Environment Variables</caption>
+            <thead>
+              <tr>
+                <th>Variable</th>
+                <th>Purpose</th>
+                <th>Production Example</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th><code>APP_URL</code> / <code>NEXT_PUBLIC_API_URL</code></th>
+                <td>Public browser URL for the UI and API gateway.</td>
+                <td><code>https://app.datastrat.example.com</code></td>
+              </tr>
+              <tr>
+                <th><code>ZITADEL_PUBLIC_URL</code> / <code>AUTH_DOMAIN</code></th>
+                <td>Public OIDC issuer URL and domain for Zitadel.</td>
+                <td><code>https://auth.datastrat.example.com</code></td>
+              </tr>
+              <tr>
+                <th><code>OIDC_CALLBACK_URL</code></th>
+                <td>Redirect URI registered in Zitadel for OIDC login.</td>
+                <td><code>https://app.datastrat.example.com/api/v1/auth/oidc/callback</code></td>
+              </tr>
+              <tr>
+                <th><code>AUTH_TLS_MODE</code> / <code>AUTH_SECURE</code></th>
+                <td>Controls Zitadel TLS expectation behind reverse proxy/LB.</td>
+                <td><code>external</code> / <code>true</code></td>
+              </tr>
+              <tr>
+                <th><code>COOKIE_DOMAIN</code> / <code>ALLOWED_ORIGINS</code></th>
+                <td>Root cookie domain and strict CORS origin allowlist.</td>
+                <td><code>.example.com</code> / <code>https://app.datastrat.example.com</code></td>
+              </tr>
+              <tr>
+                <th><code>JWT_SECRET_KEY</code> / <code>JWT_EXPIRY_HOURS</code></th>
+                <td>HS256 signing secret and session lifetime.</td>
+                <td>64-char random secret / <code>24</code></td>
+              </tr>
+              <tr>
+                <th><code>ZITADEL_MASTERKEY</code> / <code>ZITADEL_DB_PASSWORD</code></th>
+                <td>32-char Zitadel encryption master key and dedicated Postgres password.</td>
+                <td>Auto-generated by <code>deploy.sh</code></td>
+              </tr>
+              <tr>
+                <th><code>DATABASE_URL</code> / <code>REDIS_URL</code> / <code>QDRANT_URL</code></th>
+                <td>Connection URIs when using external managed services.</td>
+                <td><code>postgresql://user:pass@rds:5432/datastrat</code></td>
+              </tr>
+              <tr>
+                <th><code>STORAGE_ENDPOINT_URL</code> / <code>STORAGE_BUCKET_NAME</code></th>
+                <td>S3-compatible endpoint and evidence bucket name.</td>
+                <td><code>https://s3.amazonaws.com</code> / <code>datastrat-evidence</code></td>
+              </tr>
+              <tr>
+                <th><code>LLM_PROVIDER</code> / <code>LLM_MODEL</code> / <code>LLM_API_KEY</code></th>
+                <td>Active AI provider, model identifier, and API credential.</td>
+                <td><code>openai</code> / <code>gpt-4</code></td>
+              </tr>
+              <tr>
+                <th><code>GRAFANA_ADMIN_USER</code> / <code>GRAFANA_ADMIN_PASSWORD</code></th>
+                <td>Credentials for the bundled Grafana log dashboard at <code>/grafana/</code>.</td>
+                <td><code>admin</code> / auto-generated password</td>
+              </tr>
+              <tr>
+                <th><code>CELERY_CONCURRENCY</code> / <code>CELERY_MAX_TASKS_PER_CHILD</code></th>
+                <td>Parallel document ingestion workers and memory recycling threshold.</td>
+                <td><code>2</code> (8&ndash;16 GB) or <code>4+</code> (32+ GB) / <code>10</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 6. Identity & Authentication -->
+      <section id="identity">
+        <h2>Identity &amp; Authentication (Zitadel OIDC / SAML / SSO)</h2>
+        <p>
+          DataStrat AI ships with <strong>Zitadel v2.54.3</strong> as its embedded OpenID Connect (OIDC) provider,
+          isolated on its own PostgreSQL instance (<code>zitadel_db</code>). On first boot, <code>zitadel_init</code>
+          automatically provisions the DataStrat OIDC application and writes client credentials to the shared
+          <code>zitadel_config</code> volume (<code>/zitadel-config/credentials.json</code>).
+        </p>
+
+        <h3>OIDC Redirect &amp; Reverse Proxy Headers</h3>
+        <ul>
+          <li><strong>Callback URI:</strong> <code>https://app.&lt;domain&gt;/api/v1/auth/oidc/callback</code></li>
+          <li><strong>Post-Logout URI:</strong> <code>https://app.&lt;domain&gt;/login</code></li>
+          <li><strong>Nginx Buffer Sizing:</strong> Configured with <code>proxy_buffer_size 128k</code> and <code>large_client_header_buffers 4 64k</code> to accommodate large OIDC/JWT headers.</li>
+        </ul>
+
+        <div class="callout warn">
+          <div class="callout-title">First-Login Action Required</div>
+          <p>
+            Zitadel initializes a bootstrap human administrator (<code>admin@datastrat.local</code>) using
+            <code>ZITADEL_ADMIN_PASSWORD</code> (defaulting to <code>Admin123!</code> if not overridden in <code>.env</code>).
+            Sign in at <code>https://auth.&lt;domain&gt;</code> immediately after deployment to rotate this password and configure MFA.
+          </p>
+        </div>
+
+        <h3>Enterprise SSO &amp; SAML / OIDC Federation</h3>
+        <p>
+          To federate login with your corporate Identity Provider (Microsoft Entra ID / Azure AD, Okta, Ping Identity, or Google Workspace):
+        </p>
+        <ol>
+          <li>Log in to the Zitadel Management Console at <code>https://auth.&lt;domain&gt;</code>.</li>
+          <li>Navigate to <strong>Organization &rarr; Identity Providers</strong> and add your corporate <strong>SAML 2.0</strong> or <strong>OIDC</strong> provider.</li>
+          <li>Enable auto-creation or JIT provisioning as required by your IAM policy, then assign users to DataStrat Auditor or Compliance Officer roles.</li>
+        </ol>
+      </section>
+
+      <!-- 7. LLM & Storage Configuration -->
+      <section id="llm-storage">
+        <h2>LLM &amp; Storage Configuration</h2>
+
+        <h3>Supported LLM Providers</h3>
+        <p>Both <code>api</code> and <code>worker</code> containers read the same LLM configuration from <code>.env</code>:</p>
+        <ul>
+          <li><strong>OpenAI:</strong> <code>LLM_PROVIDER=openai</code>, <code>LLM_MODEL=gpt-4</code> (or <code>gpt-4-turbo</code> / <code>gpt-4o</code>).</li>
+          <li><strong>Anthropic:</strong> <code>LLM_PROVIDER=anthropic</code>, <code>LLM_MODEL=claude-3-5-sonnet-20240620</code>.</li>
+          <li><strong>Azure OpenAI:</strong> <code>LLM_PROVIDER=azure</code>, plus <code>AZURE_OPENAI_ENDPOINT=https://&lt;resource&gt;.openai.azure.com/</code>.</li>
+          <li><strong>OpenRouter:</strong> <code>LLM_PROVIDER=openrouter</code>, <code>LLM_BASE_URL=https://openrouter.ai/api/v1</code>.</li>
+          <li><strong>Ollama (Self-Hosted / Air-Gapped):</strong> <code>LLM_PROVIDER=ollama</code>, <code>LLM_BASE_URL=http://&lt;ollama-host&gt;:11434</code>.</li>
+        </ul>
+
+        <h3>Storage Modes: Built-in vs. Managed Cloud</h3>
+        <p>
+          When running with <code>local-storage</code>, persistent state is stored in Docker named volumes
+          (<code>postgres_data</code>, <code>qdrant_data</code>, <code>minio_data</code>, <code>zitadel_db_data</code>,
+          <code>grafana_data</code>). The <code>minio_init</code> container automatically creates the
+          <code>datastrat-evidence</code> bucket with a private access policy.
+        </p>
+        <p>
+          For enterprise cloud deployments, configure external managed services in <code>deploy.sh</code> (AWS RDS,
+          ElastiCache, Qdrant Cloud, AWS S3 / Azure Blob S3 Gateway) and omit <code>--profile local-storage</code>.
+          Nginx allows evidence uploads up to <code>60M</code> (<code>client_max_body_size 60M</code>).
+        </p>
+      </section>
+
+      <!-- 8. Upgrading & Maintenance -->
+      <section id="upgrading">
+        <h2>Upgrading &amp; Maintenance</h2>
+
+        <h3>Automated Upgrade Pipeline (<code>./update.sh</code>)</h3>
+        <p>Run <code>./update.sh</code> from your deployment directory to perform a 5-stage zero-config-loss upgrade:</p>
+        <div class="code-block">
+          <div class="code-header"><span>bash</span><button class="copy-btn" type="button">Copy</button></div>
+          <pre><code>./update.sh</code></pre>
+        </div>
+        <ol>
+          <li><strong>Fetch Release:</strong> Downloads the latest <code>datastrat-enterprise-deployment.zip</code> from GitHub Releases.</li>
+          <li><strong>Sync Configs:</strong> Extracts updated compose and Nginx files while preserving <code>.env</code> and <code>./certs/</code> (re-executing itself automatically if <code>update.sh</code> was updated).</li>
+          <li><strong>Audit <code>.env</code>:</strong> Compares <code>.env</code> against the new <code>.env.example</code> and prompts for (or auto-generates) any newly added environment keys.</li>
+          <li><strong>Prune &amp; Pull:</strong> Runs <code>docker image prune -a -f</code> and pulls updated container images.</li>
+          <li><strong>Restart Stack:</strong> Recreates containers cleanly with <code>docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d</code>.</li>
+        </ol>
+
+        <h3>Backups &amp; Observability</h3>
+        <ul>
+          <li><strong>Critical Host Files:</strong> Back up <code>.env</code> and <code>./certs/</code> to your enterprise secrets vault. Losing <code>ZITADEL_MASTERKEY</code> or <code>JWT_SECRET_KEY</code> will invalidate encrypted Zitadel state and active sessions.</li>
+          <li><strong>Database &amp; Object Backups:</strong> Snapshot managed RDS/S3 volumes, or back up Docker volumes <code>postgres_data</code>, <code>zitadel_db_data</code>, <code>qdrant_data</code>, and <code>minio_data</code> on a scheduled basis.</li>
+          <li><strong>Centralized Logs:</strong> Access Grafana at <code>https://app.&lt;domain&gt;/grafana/</code> (sign-up disabled in production). Docker json-file logs are capped at <code>10m</code> &times; <code>3</code> files per container via <code>docker-compose.prod.yml</code>.</li>
+        </ul>
+      </section>
+
+      <!-- 9. Security & Support -->
+      <section id="security-support">
+        <h2>Security &amp; Support Contact</h2>
+        <ul>
+          <li><strong>Zero Cloud Telemetry:</strong> All third-party tracing tools (such as LangSmith) are strictly disabled in production builds. Prompts, evidence, and scores remain inside your VPC.</li>
+          <li><strong>Sovereign Initialization:</strong> Schema migrations and seeding run in ephemeral <code>db_init</code> and <code>zitadel_init</code> containers that exit upon completion.</li>
+          <li><strong>Credential Hygiene:</strong> <code>deploy.sh</code> enforces <code>chmod 600 .env</code> and restricts internal database/cache ports to <code>127.0.0.1</code>.</li>
+        </ul>
+
+        <div class="callout">
+          <div class="callout-title">Enterprise Support &amp; Escalation</div>
+          <p>
+            For production assistance, deployment reviews, or licensing inquiries, contact the DataStrat AI Engineering team at
+            <a href="mailto:support@datastrat.ai"><strong>support@datastrat.ai</strong></a>.
+            When opening a ticket, please include <code>docker compose ps</code> output, relevant container logs from Grafana/Loki, and a redacted copy of your <code>.env</code> keys (never send API keys or secrets).
+          </p>
+        </div>
+      </section>
+
+      <footer class="site-footer">
+        <span>DataStrat AI &mdash; Enterprise DCAM Assessment Appliance</span>
+        <span>Support: <a href="mailto:support@datastrat.ai">support@datastrat.ai</a></span>
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    // Theme toggle (System -> Opposite -> System)
+    (function () {
+      const meta = document.querySelector('meta[name="color-scheme"]');
+      const btn = document.getElementById('theme-toggle');
+      const label = document.getElementById('theme-label');
+      const mql = window.matchMedia('(prefers-color-scheme: dark)');
+
+      function getRenderedScheme() {
+        const content = meta.getAttribute('content');
+        if (content === 'dark' || content === 'light') return content;
+        return mql.matches ? 'dark' : 'light';
+      }
+
+      function syncLabel() {
+        const current = getRenderedScheme();
+        label.textContent = current === 'dark' ? 'Light mode' : 'Dark mode';
+      }
+
+      btn.addEventListener('click', () => {
+        const rendered = getRenderedScheme();
+        const target = rendered === 'dark' ? 'light' : 'dark';
+        const sys = mql.matches ? 'dark' : 'light';
+        try {
+          if (target === sys) {
+            localStorage.removeItem('ds-color-scheme');
+            meta.setAttribute('content', 'light dark');
+          } else {
+            localStorage.setItem('ds-color-scheme', target);
+            meta.setAttribute('content', target);
+          }
+        } catch (_) {
+          meta.setAttribute('content', target);
+        }
+        syncLabel();
+      });
+
+      mql.addEventListener('change', syncLabel);
+      window.addEventListener('storage', (e) => {
+        if (e.key === 'ds-color-scheme') {
+          meta.setAttribute('content', e.newValue || 'light dark');
+          syncLabel();
+        }
+      });
+      syncLabel();
+    })();
+
+    // Copy buttons
+    document.querySelectorAll('.copy-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const code = btn.closest('.code-block').querySelector('code').textContent;
+        try {
+          await navigator.clipboard.writeText(code);
+          const orig = btn.textContent;
+          btn.textContent = 'Copied';
+          setTimeout(() => { btn.textContent = orig; }, 1500);
+        } catch (_) {}
+      });
+    });
+
+    // Accessible Tabs
+    document.querySelectorAll('[role="tab"]').forEach((tab) => {
+      tab.addEventListener('click', () => {
+        const list = tab.closest('[role="tablist"]');
+        list.querySelectorAll('[role="tab"]').forEach((t) => {
+          t.setAttribute('aria-selected', String(t === tab));
+          const panel = document.getElementById(t.getAttribute('aria-controls'));
+          if (panel) panel.hidden = t !== tab;
+        });
+      });
+    });
+
+    // Close mobile popover when clicking a nav link
+    const mobileDrawer = document.getElementById('mobile-nav');
+    mobileDrawer.querySelectorAll('a').forEach((link) => {
+      link.addEventListener('click', () => {
+        if (mobileDrawer.matches(':popover-open')) {
+          mobileDrawer.hidePopover();
+        }
+      });
+    });
+
+    // Scrollspy for sidebar aria-current="location"
+    const sections = Array.from(document.querySelectorAll('main section[id]'));
+    const navLinks = Array.from(document.querySelectorAll('.sidebar .nav-link'));
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          const id = entry.target.getAttribute('id');
+          navLinks.forEach((a) => {
+            if (a.getAttribute('href') === '#' + id) {
+              a.setAttribute('aria-current', 'location');
+            } else {
+              a.removeAttribute('aria-current');
+            }
+          });
+        }
+      }
+    }, { rootMargin: '-20% 0px -70% 0px' });
+    sections.forEach((s) => observer.observe(s));
+  </script>
+</body>
+</html>
